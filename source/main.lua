@@ -15,16 +15,6 @@ local gfx <const> = playdate.graphics
 -- the board/grid size is 12x7 (84 tiles)
 -- 384x224
 
--- TODO:
--- load tiles
--- load sprites
--- draw a grid using the tiles
--- make the cursor use the + and - sprites for now
--- pressing A will toggle the tile between 0 and 1 (for now)
-
--- add save/load stage to menu
--- allow placing player start and items
-
 -- NOTES:
 -- arrays in LUA are 1 indexed...
 -- init variables with local. Without local the variable will be added to global scope
@@ -45,15 +35,6 @@ local gfx <const> = playdate.graphics
 -- math.random() -> 0.0->1.0
 -- math.random(6) -> int from 1-6
 
--- GRID CELL TYPES
--- 0 : empty space
--- 1 : solid wall
--- 2 : start point
--- 3 : exit
--- 4 : locked door
--- 5 : key (opens locked door)
--- 6 : clock (adds 1 second extra time)
-
 -- SPRITE FRAMES
 -- 1 - add (editor)
 -- 2 - subtract (editor)
@@ -72,7 +53,6 @@ local gfx <const> = playdate.graphics
 -- MENUS + ICONS
 -- FONTS
 
-local grid = nil
 local stageFileName <const> = "stages"
 
 local EDIT_ADD <const> = 1
@@ -85,6 +65,10 @@ local CLOCK <const> = 7
 
 local EDIT_MAX <const> = CLOCK
 
+local spriteOffsetX <const> = 24
+local spriteOffsetY <const> = 24
+local cellSize <const> = 32
+
 
 
 -- STAGE ----------------------------------------------------------------------
@@ -92,7 +76,6 @@ local stage = {}
 stage.width = 12
 stage.height = 7
 stage.cells = nil
-stage.cellSize = 32 -- size in pixels
 stage.time = 10 -- time in seconds
 
 stage.actors = nil -- array of actors (items, start pos, exit etc.)
@@ -106,13 +89,57 @@ stage.init = function()
 	else
 		print("Loaded data from file", stageFileName)
 	end
+
+	stage.actors = {}
+	stage.populate()
 end
 
 -- populate actors based on cell values
--- 0: empty
--- 1: solid
--- start, exit, locked door, key, clock
 stage.populate = function()
+	local cells = stage.cells
+	local actors = stage.actors
+	local cnt = stage.width * stage.height
+	for i=1, cnt, 1 do
+		local cellValue = cells[i]
+		local sprite = actors[i]
+
+		if cellValue > EDIT_SUB and cellValue <= EDIT_MAX then
+			if sprite ~= nil then
+				sprite:setImage(spriteTable:getImage(cellValue))
+				sprite:add()
+			else
+				local x = i % stage.width - 1
+				local y = (i - x - 1) / stage.width
+				sprite = gfx.sprite.new(spriteTable:getImage(cellValue))
+				sprite:moveTo(x * cellSize + spriteOffsetX, y * cellSize + spriteOffsetY)
+				sprite:add()
+				actors[i] = sprite
+			end
+		elseif sprite ~= nil then
+			sprite:remove()
+		end
+	end
+end
+
+stage.refreshCell = function(i)
+	local cellValue = stage.cells[i]
+	local sprite = stage.actors[i]
+
+	if cellValue > EDIT_SUB and cellValue <= EDIT_MAX then
+		if sprite ~= nil then
+			sprite:setImage(spriteTable:getImage(cellValue))
+			sprite:add()
+		else
+			local x = i % stage.width - 1
+			local y = (i - x - 1) / stage.width
+			sprite = gfx.sprite.new(spriteTable:getImage(cellValue))
+			sprite:moveTo(x * cellSize + spriteOffsetX, y * cellSize + spriteOffsetY)
+			sprite:add()
+			stage.actors[i] = sprite
+		end
+	elseif sprite ~= nil then
+		sprite:remove()
+	end
 
 end
 
@@ -130,6 +157,29 @@ stage.isValidCell = function(x, y)
 		return false
 	end
 	return true
+end
+
+stage.editCell = function(x, y, toolId)
+	if stage.isValidCell(x, y) then
+		local i = (y-1) * stage.width + x
+
+		local cells = stage.cells
+		local cellValue = cells[i]
+
+		if toolId == EDIT_ADD or toolId == EDIT_SUB then
+			if cellValue == 0 then cells[i] = 1 else cells[i] = 0 end
+		else
+			cells[i] = 0
+			if cellValue ~= toolId then
+				cells[i] = toolId
+			end
+		end
+		-- refresh the cell actor/sprite
+		stage.refreshCell(i)
+	else
+		-- shouldn't happen, but just in case
+		print("ERROR: Invalid cell %d, %d", x, y)
+	end
 end
 
 stage.generateGrid = function()
@@ -163,7 +213,7 @@ player.init = function()
 	player.image1 = spriteTable:getImage(13)
 	player.image2 = spriteTable:getImage(14)
 	player.sprite = gfx.sprite.new(player.image1)
-	player.sprite:moveTo(24, 24)
+	player.sprite:moveTo(spriteOffsetX, spriteOffsetY)
 	player.sprite:add()
 	player.updateEditModeTool()
 end
@@ -186,7 +236,17 @@ player.update = function()
 	if crankChange ~= 0 then
 		player.updateEditModeTool()
 	end
+
+	if playdate.buttonJustPressed(playdate.kButtonA) then
+		if player.editMode then
+			stage.editCell(player.x, player.y, player.editModeTool)
+			generateGridImage(screenImage)
+			gfx.sprite.redrawBackground()
+			stage.saveData()
+		end
+	end
 end
+
 
 player.updateEditModeTool = function()
 	local crankPos = playdate.getCrankPosition()
@@ -213,14 +273,12 @@ player.tryMove = function(direction)
 		ty = 1
 	end
 
-	-- print(direction, tx, ty)
-
 	-- edit mode movement
 	if player.editMode then
 		if stage.isValidCell(player.x + tx, player.y + ty) then
 			player.x += tx
 			player.y += ty
-			player.sprite:moveBy(tx * stage.cellSize, ty * stage.cellSize)
+			player.sprite:moveBy(tx * cellSize, ty * cellSize)
 		end
 
 		return
@@ -230,7 +288,7 @@ player.tryMove = function(direction)
 	if stage.isEmptyCell(player.x + tx, player.y + ty) then
 		player.x += tx
 		player.y += ty
-		player.sprite:moveBy(tx * stage.cellSize, ty * stage.cellSize)
+		player.sprite:moveBy(tx * cellSize, ty * cellSize)
 		if player.frame == 1 then
 			player.frame = 2
 			player.sprite:setImage(player.image2)
@@ -243,6 +301,15 @@ end
 
 player.toggleEditMode = function()
 	player.editMode = not player.editMode
+	player.setEditMode(player.editMode)
+end
+
+player.setEditMode = function(value)
+	if player.editMode == value then
+		return
+	end
+
+	player.editMode = value
 	if player.editMode then
 		player.sprite:setImage(spriteTable:getImage(player.editModeTool))
 	else
@@ -270,6 +337,12 @@ function initGame()
 	-- initialize main objects
 	stage.init()
 	player.init()
+
+	-- add menu option
+	local menu = playdate.getSystemMenu()
+	local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
+		player.setEditMode(value)
+	end)
 
 	-- set up background
 	screenImage = gfx.image.new(400, 240, gfx.kColorBlack)
@@ -320,11 +393,10 @@ function generateGridImage(image)
 			if idx == 0 then idx = -1 end
 		end
 
-		tileTable:drawImage(idx+1, x*32+4, y*32+4)
+		tileTable:drawImage(idx + 1, x * cellSize + 4, y * cellSize + 4)
 	end
 
 	gfx.unlockFocus()
-
 end
 
 
@@ -335,47 +407,27 @@ function playdate.update()
 
 	player.update()
 
-	local px,py = player.sprite:getPosition()
-
-	if playdate.buttonJustPressed(playdate.kButtonA) then
-		if player.editMode then
-			local x = player.x
-			local y = player.y
-			local i = (y-1) * stage.width + x
-			-- print(x, y, " : ", i)
-			stage.cells[i] = math.abs(stage.cells[i] - 1)
-			generateGridImage(screenImage)
-			gfx.sprite.redrawBackground()
-			stage.saveData()
-
-			-- test
-			startTime = playdate.getCurrentTimeMilliseconds()
-			print("time since last tile change:", elapsedTime/1000)
-		end
-	end
-
-	if playdate.buttonJustPressed(playdate.kButtonB) then
-		player.toggleEditMode()
-		-- stage.generateGrid()
-		-- generateGridImage(screenImage)
-		-- gfx.sprite.redrawBackground()
-	end
-
 	-- draw all sprites and update timers
 	gfx.sprite.update()
 	playdate.timer.updateTimers()
 
-	-- print time
-	local timeLeft = 0
-	local stageTime = stage.time * 1000
-	if elapsedTime < stageTime then timeLeft = stageTime - elapsedTime end
-	local timeString = string.format("TIME: *%.3f*", timeLeft/1000)
+	if player.editMode == false then
+		-- print time
+		local timeLeft = 0
+		local stageTime = stage.time * 1000
+		if elapsedTime < stageTime then
+			timeLeft = stageTime - elapsedTime
+		end
 
-	-- seem to have issues if I do this before anything else...
-	local currentDrawMode = gfx.getImageDrawMode()
-	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	gfx.drawText(timeString, px+16, py-8)
-	gfx.setImageDrawMode(currentDrawMode)
+		local timeString = string.format("TIME: *%.3f*", timeLeft/1000)
+
+		-- seem to have issues if I do this before anything else...
+		local px,py = player.sprite:getPosition()
+		local currentDrawMode = gfx.getImageDrawMode()
+		gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+		gfx.drawText(timeString, px+16, py-8)
+		gfx.setImageDrawMode(currentDrawMode)
+	end
 end
 
 
