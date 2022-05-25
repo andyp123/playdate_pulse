@@ -1,0 +1,8 @@
+name=Pulse
+author=Andrew Palmer
+description=Figure out the controls and escape each stage within a strict time limit.
+bundleID=com.andrewpalmer.pulse
+version=1.0
+buildNumber=123
+imagePath=images/launcher
+launchSoundPath=sounds/launcher
