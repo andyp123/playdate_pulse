@@ -4,7 +4,7 @@ import "CoreLibs/object"
 import "CoreLibs/graphics"
 import "CoreLibs/sprites"
 import "CoreLibs/timer"
--- import "CoreLibs/save"
+import "CoreLibs/crank"
 
 local gfx <const> = playdate.graphics
 
@@ -55,14 +55,15 @@ local gfx <const> = playdate.graphics
 -- 6 : clock (adds 1 second extra time)
 
 -- SPRITE FRAMES
--- 1 - player frame 1
--- 2 - player frame 2
--- 3 - exit door
--- 4 - locked door
--- 5 - add (editor)
--- 6 - subtract (editor)
+-- 1 - add (editor)
+-- 2 - subtract (editor)
+-- 3 - entrance
+-- 4 - exit
+-- 5 - locked door
+-- 6 - key
 -- 7 - clock
--- 8 - key
+-- 13 - player frame 1
+-- 14 - player frame 2
 
 -- PLAYER SPRITES
 -- EDITOR SPRITES
@@ -73,6 +74,17 @@ local gfx <const> = playdate.graphics
 
 local grid = nil
 local stageFileName <const> = "stages"
+
+local EDIT_ADD <const> = 1
+local EDIT_SUB <const> = 2
+local ENTRANCE <const> = 3
+local EXIT <const> = 4
+local LOCK <const> = 5
+local KEY <const> = 6
+local CLOCK <const> = 7
+
+local EDIT_MAX <const> = CLOCK
+
 
 
 -- STAGE ----------------------------------------------------------------------
@@ -145,13 +157,15 @@ player.frame = 1 -- 1 or 2
 player.x = 1
 player.y = 1
 player.editMode = false
+player.editModeTool = EDIT_ADD
 
 player.init = function()
-	player.image1 = spriteTable:getImage(1)
-	player.image2 = spriteTable:getImage(2)
+	player.image1 = spriteTable:getImage(13)
+	player.image2 = spriteTable:getImage(14)
 	player.sprite = gfx.sprite.new(player.image1)
 	player.sprite:moveTo(24, 24)
 	player.sprite:add()
+	player.updateEditModeTool()
 end
 
 player.update = function()
@@ -166,6 +180,23 @@ player.update = function()
 	end
 	if playdate.buttonJustPressed(playdate.kButtonDown) then
 		player.tryMove("down")
+	end
+
+	local crankChange = playdate.getCrankChange()
+	if crankChange ~= 0 then
+		player.updateEditModeTool()
+	end
+end
+
+player.updateEditModeTool = function()
+	local crankPos = playdate.getCrankPosition()
+	local segmentSize = 360 / EDIT_MAX
+	local adjustedPos = (crankPos + segmentSize * 0.5) % 360
+	local toolId = math.floor(adjustedPos / segmentSize) + 1
+	player.editModeTool = toolId
+
+	if player.editMode then
+		player.sprite:setImage(spriteTable:getImage(toolId))
 	end
 end
 
@@ -213,7 +244,7 @@ end
 player.toggleEditMode = function()
 	player.editMode = not player.editMode
 	if player.editMode then
-		player.sprite:setImage(spriteTable:getImage(5))
+		player.sprite:setImage(spriteTable:getImage(player.editModeTool))
 	else
 		player.frame = 1
 		player.sprite:setImage(player.image1)
