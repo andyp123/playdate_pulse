@@ -55,6 +55,9 @@ local gfx <const> = playdate.graphics
 
 local stageFileName <const> = "stages"
 
+local EMPTY <const> = 0
+local SOLID <const> = 1
+
 local EDIT_ADD <const> = 1
 local EDIT_SUB <const> = 2
 local ENTRANCE <const> = 3
@@ -131,7 +134,7 @@ stage.refreshCell = function(i)
 			sprite:add()
 		else
 			local x = i % stage.width - 1
-			local y = (i - x - 1) / stage.width
+			local y = math.floor((i - x - 1) / stage.width)
 			sprite = gfx.sprite.new(spriteTable:getImage(cellValue))
 			sprite:moveTo(x * cellSize + spriteOffsetX, y * cellSize + spriteOffsetY)
 			sprite:add()
@@ -193,6 +196,26 @@ stage.generateGrid = function()
 	end
 end
 
+stage.findCellOfType = function(typeId)
+	local cells = stage.cells
+	local cnt = stage.width * stage.height
+	for i=1, cnt, 1 do
+		if cells[i] == typeId then
+			return i
+		end
+	end
+
+	return -1
+end
+
+-- calculation requires 0 to n-1 indexing
+-- return value is 1 to n
+stage.indexToXY = function(i)
+	local x = i % stage.width
+	local y = math.floor((i - x) / stage.width) + 1
+	return x, y
+end
+
 stage.saveData = function()
 	print("Attempting to save grid to", stageFileName)
 	playdate.datastore.write(stage.cells, stageFileName)
@@ -208,6 +231,7 @@ player.x = 1
 player.y = 1
 player.editMode = false
 player.editModeTool = EDIT_ADD
+player.keyItems = 0
 
 player.init = function()
 	player.image1 = spriteTable:getImage(13)
@@ -260,6 +284,15 @@ player.updateEditModeTool = function()
 	end
 end
 
+-- more of a teleport than for moving by one square
+-- useful for postioning the player when the game starts
+player.moveTo = function(x, y)
+	player.x = x
+	player.y = y
+	player.sprite:moveTo((x-1) * cellSize + spriteOffsetX, (y-1) * cellSize + spriteOffsetY)
+	player.sprite:setImage(player.image1)
+end
+
 player.tryMove = function(direction)
 	local tx = 0
 	local ty = 0
@@ -273,30 +306,63 @@ player.tryMove = function(direction)
 		ty = 1
 	end
 
-	-- edit mode movement
-	if player.editMode then
-		if stage.isValidCell(player.x + tx, player.y + ty) then
-			player.x += tx
-			player.y += ty
-			player.sprite:moveBy(tx * cellSize, ty * cellSize)
-		end
-
+	-- return on trying to move to an invalid (edge) cell
+	if stage.isValidCell(player.x + tx, player.y + ty) == false then
 		return
 	end
 
-	-- regular movement
-	if stage.isEmptyCell(player.x + tx, player.y + ty) then
+	-- -- edit mode movement
+	if player.editMode then
 		player.x += tx
 		player.y += ty
 		player.sprite:moveBy(tx * cellSize, ty * cellSize)
-		if player.frame == 1 then
-			player.frame = 2
-			player.sprite:setImage(player.image2)
+	end
+
+	-- regular movement
+	local i = (player.y + ty - 1) * stage.width + player.x + tx
+	if player.tryMoveAndCollect(i) then
+		player.x += tx
+		player.y += ty
+		player.sprite:moveBy(tx * cellSize, ty * cellSize)
+
+		if player.keyItems > 0 then
+			player.sprite:setImage(spriteTable:getImage(KEY))
 		else
-			player.frame = 1
-			player.sprite:setImage(player.image1)
+			if player.frame == 1 then
+				player.frame = 2
+				player.sprite:setImage(player.image2)
+			else
+				player.frame = 1
+				player.sprite:setImage(player.image1)
+			end
 		end
 	end
+end
+
+player.tryMoveAndCollect = function(i)
+	local typeId = stage.cells[i]
+
+	if typeId == SOLID then
+		return false
+	elseif typeId == CLOCK then
+		stage.cells[i] = 0
+		stage.refreshCell(i)
+	elseif typeId == KEY then
+		player.keyItems += 1
+		stage.cells[i] = 0
+		stage.refreshCell(i)
+	elseif typeId  == LOCK then
+		if player.keyItems > 0 then
+			player.keyItems -= 1
+			stage.cells[i] = 0
+			stage.refreshCell(i)
+			return true
+		end
+		return false
+	end
+
+	-- can move to any other cell type
+	return true
 end
 
 player.toggleEditMode = function()
@@ -337,6 +403,12 @@ function initGame()
 	-- initialize main objects
 	stage.init()
 	player.init()
+
+	local cellIndex = stage.findCellOfType(ENTRANCE)
+	if cellIndex > 0 then
+		local x, y = stage.indexToXY(cellIndex)
+		player.moveTo(x, y)
+	end
 
 	-- add menu option
 	local menu = playdate.getSystemMenu()
