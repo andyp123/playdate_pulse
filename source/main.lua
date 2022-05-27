@@ -7,6 +7,7 @@ import "CoreLibs/timer"
 import "CoreLibs/crank"
 
 local gfx <const> = playdate.graphics
+local snd <const> = playdate.sound
 
 -- SPECS:
 -- screen is 400x240
@@ -72,6 +73,16 @@ local spriteOffsetX <const> = 24
 local spriteOffsetY <const> = 24
 local cellSize <const> = 32
 
+
+local sfx = {}
+sfx.init = function()
+	sfx.MOVE = snd.sampleplayer.new("sounds/move")
+	sfx.MOVE_FAIL = snd.sampleplayer.new("sounds/move_fail")
+	sfx.GET_KEY = snd.sampleplayer.new("sounds/get_key")
+	sfx.GET_CLOCK = snd.sampleplayer.new("sounds/get_clock")
+	sfx.USE_KEY = snd.sampleplayer.new("sounds/use_key")
+	sfx.STAGE_CLEAR = snd.sampleplayer.new("sounds/stage_clear")
+end
 
 
 -- STAGE ----------------------------------------------------------------------
@@ -308,6 +319,9 @@ player.tryMove = function(direction)
 
 	-- return on trying to move to an invalid (edge) cell
 	if stage.isValidCell(player.x + tx, player.y + ty) == false then
+		if player.editMode == false then
+			sfx.MOVE_FAIL:play()
+		end
 		return
 	end
 
@@ -316,6 +330,7 @@ player.tryMove = function(direction)
 		player.x += tx
 		player.y += ty
 		player.sprite:moveBy(tx * cellSize, ty * cellSize)
+		return
 	end
 
 	-- regular movement
@@ -343,25 +358,36 @@ player.tryMoveAndCollect = function(i)
 	local typeId = stage.cells[i]
 
 	if typeId == SOLID then
+		sfx.MOVE_FAIL:play()
 		return false
 	elseif typeId == CLOCK then
 		stage.cells[i] = 0
 		stage.refreshCell(i)
+		sfx.GET_CLOCK:play()
+		return true
 	elseif typeId == KEY then
 		player.keyItems += 1
 		stage.cells[i] = 0
 		stage.refreshCell(i)
-	elseif typeId  == LOCK then
+		sfx.GET_KEY:play()
+		return true
+	elseif typeId == LOCK then
 		if player.keyItems > 0 then
 			player.keyItems -= 1
 			stage.cells[i] = 0
 			stage.refreshCell(i)
+			sfx.USE_KEY:play()
 			return true
 		end
+		sfx.MOVE_FAIL:play()		
 		return false
+	elseif typeId == EXIT then
+		sfx.STAGE_CLEAR:play()
+		return true
 	end
 
 	-- can move to any other cell type
+	sfx.MOVE:play()
 	return true
 end
 
@@ -401,6 +427,7 @@ function initGame()
 	assert(tileTable)
 
 	-- initialize main objects
+	sfx.init()
 	stage.init()
 	player.init()
 
