@@ -74,6 +74,9 @@ local spriteOffsetY <const> = 24
 local cellSize <const> = 32
 
 
+local startTime = 0
+
+
 local sfx = {}
 sfx.init = function()
 	sfx.MOVE = snd.sampleplayer.new("sounds/move")
@@ -84,6 +87,14 @@ sfx.init = function()
 	sfx.STAGE_CLEAR = snd.sampleplayer.new("sounds/stage_clear")
 end
 
+
+-- current (loaded) stage
+-- - only current stage contains actors table
+-- stages
+-- stage groups
+-- user stages
+
+local player = {}
 
 -- STAGE ----------------------------------------------------------------------
 local stage = {}
@@ -96,7 +107,14 @@ stage.actors = nil -- array of actors (items, start pos, exit etc.)
 
 
 stage.init = function()
+	stage.loadData()
+end
+
+
+stage.loadData = function()
+	stage.cells = nil
 	stage.cells = playdate.datastore.read(stageFileName)
+
 	if stage.cells == nil then
 		print("Could not load file", stageFileName)
 		stage.generateGrid()
@@ -107,6 +125,19 @@ stage.init = function()
 	stage.actors = {}
 	stage.populate()
 end
+
+
+stage.saveData = function()
+	print("Attempting to save grid to", stageFileName)
+	playdate.datastore.write(stage.cells, stageFileName)
+end
+
+
+stage.reload = function()
+	print("Reloading stage")
+	stage.loadData()
+end
+
 
 -- populate actors based on cell values
 stage.populate = function()
@@ -135,6 +166,7 @@ stage.populate = function()
 	end
 end
 
+
 stage.refreshCell = function(i)
 	local cellValue = stage.cells[i]
 	local sprite = stage.actors[i]
@@ -154,8 +186,8 @@ stage.refreshCell = function(i)
 	elseif sprite ~= nil then
 		sprite:remove()
 	end
-
 end
+
 
 stage.isEmptyCell = function(x, y)
 	if x < 1 or x > stage.width or y < 1 or y > stage.height then
@@ -166,12 +198,14 @@ stage.isEmptyCell = function(x, y)
 	return stage.cells[i] ~= 1
 end
 
+
 stage.isValidCell = function(x, y)
 	if x < 1 or x > stage.width or y < 1 or y > stage.height then
 		return false
 	end
 	return true
 end
+
 
 stage.editCell = function(x, y, toolId)
 	if stage.isValidCell(x, y) then
@@ -196,6 +230,7 @@ stage.editCell = function(x, y, toolId)
 	end
 end
 
+
 stage.generateGrid = function()
 	if stage.cells == nil then
 		stage.cells = {}
@@ -206,6 +241,7 @@ stage.generateGrid = function()
 		cells[i] = math.random(2)-1
 	end
 end
+
 
 stage.findCellOfType = function(typeId)
 	local cells = stage.cells
@@ -219,6 +255,7 @@ stage.findCellOfType = function(typeId)
 	return -1
 end
 
+
 -- calculation requires 0 to n-1 indexing
 -- return value is 1 to n
 stage.indexToXY = function(i)
@@ -227,10 +264,6 @@ stage.indexToXY = function(i)
 	return x, y
 end
 
-stage.saveData = function()
-	print("Attempting to save grid to", stageFileName)
-	playdate.datastore.write(stage.cells, stageFileName)
-end
 
 -- PLAYER ---------------------------------------------------------------------
 local player = {}
@@ -244,6 +277,7 @@ player.editMode = false
 player.editModeTool = EDIT_ADD
 player.keyItems = 0
 
+
 player.init = function()
 	player.image1 = spriteTable:getImage(13)
 	player.image2 = spriteTable:getImage(14)
@@ -253,20 +287,25 @@ player.init = function()
 	player.updateEditModeTool()
 end
 
+
 player.update = function()
+	-- movement
+	local mx, my = 0, 0
 	if playdate.buttonJustPressed(playdate.kButtonLeft) then
-		player.tryMove("left")
-	end
-	if playdate.buttonJustPressed(playdate.kButtonRight) then
-		player.tryMove("right")
+		mx = -1
+	elseif playdate.buttonJustPressed(playdate.kButtonRight) then
+		mx = 1
 	end
 	if playdate.buttonJustPressed(playdate.kButtonUp) then
-		player.tryMove("up")
+		my = -1
+	elseif playdate.buttonJustPressed(playdate.kButtonDown) then
+		my = 1
 	end
-	if playdate.buttonJustPressed(playdate.kButtonDown) then
-		player.tryMove("down")
+	if mx ~= 0 or my ~= 0 then
+		player.tryMove(mx, my)
 	end
 
+	-- crank
 	local crankChange = playdate.getCrankChange()
 	if crankChange ~= 0 then
 		player.updateEditModeTool()
@@ -295,6 +334,7 @@ player.updateEditModeTool = function()
 	end
 end
 
+
 -- more of a teleport than for moving by one square
 -- useful for postioning the player when the game starts
 player.moveTo = function(x, y)
@@ -304,19 +344,8 @@ player.moveTo = function(x, y)
 	player.sprite:setImage(player.image1)
 end
 
-player.tryMove = function(direction)
-	local tx = 0
-	local ty = 0
-	if direction == "left" then
-		tx = -1
-	elseif direction == "right" then
-		tx = 1
-	elseif direction == "up" then
-		ty = -1
-	else
-		ty = 1
-	end
 
+player.tryMove = function(tx, ty)
 	-- return on trying to move to an invalid (edge) cell
 	if stage.isValidCell(player.x + tx, player.y + ty) == false then
 		if player.editMode == false then
@@ -325,7 +354,7 @@ player.tryMove = function(direction)
 		return
 	end
 
-	-- -- edit mode movement
+	-- edit mode movement
 	if player.editMode then
 		player.x += tx
 		player.y += ty
@@ -353,6 +382,16 @@ player.tryMove = function(direction)
 		end
 	end
 end
+
+
+player.moveToStart = function()
+	local cellIndex = stage.findCellOfType(ENTRANCE)
+	if cellIndex > 0 then
+		local x, y = stage.indexToXY(cellIndex)
+		player.moveTo(x, y)
+	end
+end
+
 
 player.tryMoveAndCollect = function(i)
 	local typeId = stage.cells[i]
@@ -408,10 +447,9 @@ player.setEditMode = function(value)
 		player.frame = 1
 		player.sprite:setImage(player.image1)
 	end
+
+	stage.reload()
 end
-
-
-local startTime = 0
 
 
 -- GAME -----------------------------------------------------------------------
@@ -428,19 +466,18 @@ function initGame()
 
 	-- initialize main objects
 	sfx.init()
-	stage.init()
 	player.init()
+	stage.init()
 
-	local cellIndex = stage.findCellOfType(ENTRANCE)
-	if cellIndex > 0 then
-		local x, y = stage.indexToXY(cellIndex)
-		player.moveTo(x, y)
-	end
+	player.moveToStart()
 
 	-- add menu option
 	local menu = playdate.getSystemMenu()
 	local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
 		player.setEditMode(value)
+		if not value then
+			player.moveToStart()
+		end
 	end)
 
 	-- set up background
