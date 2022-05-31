@@ -33,6 +33,9 @@ SFX_GET_KEY = snd.sampleplayer.new("sounds/get_key")
 SFX_GET_CLOCK = snd.sampleplayer.new("sounds/get_clock")
 SFX_USE_KEY = snd.sampleplayer.new("sounds/use_key")
 SFX_STAGE_CLEAR = snd.sampleplayer.new("sounds/stage_clear")
+SFX_TIME_TICK = snd.sampleplayer.new("sounds/time_tick")
+SFX_TIME_OVER = snd.sampleplayer.new("sounds/time_over")
+SFX_CONGRATULATIONS = snd.sampleplayer.new("sounds/congratulations")
 
 -- TOOLS / SPRITES
 local TYPE_EMPTY <const> = 0
@@ -68,6 +71,12 @@ function isValidIndex(x, y)
 	return true
 end
 
+function clamp(value, min, max)
+	if value < min then return min end
+	if value > max then return max end
+	return value
+end
+
 
 
 -- saving and loadings stage data
@@ -78,7 +87,7 @@ function loadStagesFromFile(filename)
 		print(string.format("Error: Could not load '%s'", filename))
 	else
 		local cnt = table.getsize(data)
-		print(string.format("Data loaded %d stages from '%s'", cnt, filename))
+		print(string.format("Loaded %d stages from '%s'", cnt, filename))
 	end
 
 	stageData = data
@@ -410,13 +419,51 @@ function player:tryMoveAndCollect(x, y)
 end
 
 
--- MAIN -----
-function playdate.update()
+-- game
+local game = {}
+game.inProgress = true
+game.startTimeMS = playdate.getCurrentTimeMilliseconds()
+game.timeRemaining = 10
+
+function game:update()
+	local prevTime = self.timeRemaining
+
+	if self.inProgress then
+		local elapsed = (playdate.getCurrentTimeMilliseconds() - self.startTimeMS) * 0.001
+		self.timeRemaining = clamp(stage.time - elapsed, 0, stage.time)
+	end
+
+	if prevTime > 0 and self.timeRemaining == 0 then
+		SFX_TIME_OVER:play()
+		self.inProgress = false
+	elseif math.floor(prevTime) > math.floor(self.timeRemaining) then
+		SFX_TIME_TICK:play()
+	end 
+
+	player:update()
+
 	-- draw all sprites and update timers
 	gfx.sprite.update()
 	playdate.timer.updateTimers()
 
-	player:update()
+	local timeString = string.format("TIME: *%.3f*", self.timeRemaining)
+
+	-- seem to have issues if I do this before anything else...
+	local px,py = player.sprite:getPosition()
+	local currentDrawMode = gfx.getImageDrawMode()
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	gfx.drawText(timeString, px+16, py-8)
+	gfx.setImageDrawMode(currentDrawMode)
+
+	-- print(timeString)
+end
+
+
+
+-- MAIN -----
+function playdate.update()
+	game:update()
+
 end
 
 
@@ -470,7 +517,6 @@ function initGame()
 	-- add menu option
 	local menu = playdate.getSystemMenu()
 	local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
-		-- loadStage(gameStages, currentStageId)
 		player.editmodeEnabled = not player.editmodeEnabled
 		player:updateEditModeType() -- make sure correct tool is set
 		player:updateSpriteImage()
