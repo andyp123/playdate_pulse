@@ -118,6 +118,46 @@ function setStageData(i, data)
 end
 
 
+-- random values for adding jitter
+local jitter = {}
+function jitter:init(numSamples)
+	self.numSamples = numSamples
+	self.nextSampleIdx = 1
+	self.values = table.create(numSamples * 2, 0)
+	for i = 1, numSamples * 2 do
+		local angle = math.random() * math.pi * 2
+		local x, y = math.sin(angle), math.cos(angle)
+		self.values[2*i-1] = x
+		self.values[2*i] = y
+		-- print(string.format("%d| %.1f: (%.3f, %.3f)", i, angle * 360/(2*math.pi), x, y))
+	end
+end
+
+
+function jitter:getAt(i)
+	return self.values[2*i-1], self.values[2*i]
+end
+
+
+function jitter:getAtScaled(i, scale)
+	return self.values[2*i-1] * scale, self.values[2*i] * scale
+end
+
+
+function jitter:get()
+	print(self.nextSampleIdx)
+	local i = self.nextSampleIdx * 2
+	if self.nextSampleIdx == self.numSamples then
+		self.nextSampleIdx = 1
+	else
+		self.nextSampleIdx += 1
+	end
+	return self.values[i-1], self.values[i]
+end
+
+
+jitter:init((STAGE_WIDTH+1) * (STAGE_HEIGHT+1))
+
 
 -- stage
 local stage = {}
@@ -158,7 +198,8 @@ function stage:getData()
 end
 
 
-function stage:drawToImage(image)
+-- unused simple version without jitter etc.
+function stage:drawToImage_IMG(image)
 	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
 
@@ -182,8 +223,62 @@ function stage:drawToImage(image)
 			idx = t + r + b + l
 			if idx == 0 then idx = -1 end
 		end
-
 		tileTable:drawImage(idx + 1, x * size + offset, y * size + offset)
+	end
+
+	gfx.unlockFocus()
+end
+
+
+function stage:drawToImage(image)
+	image:clear(gfx.kColorBlack)
+	gfx.lockFocus(image)
+
+	local cells = self.cells
+	local width, height = STAGE_WIDTH, STAGE_HEIGHT
+	local size, offset = STAGE_CELLSIZE, STAGE_OFFSET
+
+	gfx.setColor(gfx.kColorWhite)
+	gfx.setLineWidth(2)
+	gfx.setLineCapStyle(gfx.kLineCapStyleSquare) --kLineCapStyleRound)
+
+	for i = 1, STAGE_NUM_CELLS do
+		local y = math.floor((i-1) / STAGE_WIDTH)
+		local x = i - (STAGE_WIDTH * y) - 1
+		local xp = x * size + offset
+		local yp = y * size + offset
+
+		-- jitter for each corner x and y
+		local jitterScale = 4
+		local tlx, tly = jitter:getAtScaled(i, jitterScale)
+		local trx, try = jitter:getAtScaled(i+1, jitterScale)
+		local blx, bly = jitter:getAtScaled(i+STAGE_WIDTH, jitterScale)
+		local brx, bry = jitter:getAtScaled(i+STAGE_WIDTH+1, jitterScale)
+
+		if cells[i] == 1 then
+			tileTable:drawImage(1, xp, yp)
+		else
+			-- calculate the tile edges
+			-- t, r, b, l order
+			xp += 4
+			yp += 4
+			if y == 0 or cells[i-width] == 1 then
+				-- top
+				gfx.drawLine(xp+tlx, yp+tly, xp+trx + size, yp+try)
+			end
+			if x == width - 1 or cells[i+1] == 1 then
+				-- right
+				gfx.drawLine(xp+trx + size, yp+try, xp+brx + size, yp+bry + size)
+			end
+			if y == height - 1 or cells[i+width] == 1 then
+				-- bottom
+				gfx.drawLine(xp+blx, yp+bly + size, xp+brx + size, yp+bry + size)
+			end
+			if x == 0 or cells[i-1] == 1 then
+				-- left
+				gfx.drawLine(xp+tlx, yp+tly, xp+blx, yp+bly + size)
+			end
+		end
 	end
 
 	gfx.unlockFocus()
@@ -421,7 +516,7 @@ end
 
 -- game
 local game = {}
-game.inProgress = true
+game.inProgress = false
 game.startTimeMS = playdate.getCurrentTimeMilliseconds()
 game.timeRemaining = 10
 
