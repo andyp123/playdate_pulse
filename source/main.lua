@@ -17,9 +17,23 @@ local STAGE_CELLSIZE <const> = 32
 local STAGE_OFFSET <const> = 4
 local SPRITE_OFFSET <const> = 24
 
--- filenames
-local gameStageFileName <const> = "data/gamestages"
-local userStageFileName <const> = "data/userstages"
+-- state
+local STATE_TITLE <const> = 1
+local STATE_STAGE_WAIT <const> = 2
+local STATE_STAGE_PLAY <const> = 3
+local STATE_STAGE_CLEAR <const> = 4
+local STATE_STAGE_FAIL <const> = 5
+local STATE_GAME_CLEAR <const> = 6
+
+
+-- tools / sprites
+local TYPE_EMPTY <const> = 0
+local TYPE_SOLID <const> = 1
+local TYPE_START <const> = 2
+local TYPE_EXIT <const> = 3
+local TYPE_DOOR <const> = 4
+local TYPE_KEY <const> = 5
+local TYPE_CLOCK <const> = 6
 
 -- images
 local tileTable = gfx.imagetable.new("images/tiles")
@@ -37,18 +51,21 @@ SFX_TIME_TICK = snd.sampleplayer.new("sounds/time_tick")
 SFX_TIME_OVER = snd.sampleplayer.new("sounds/time_over")
 SFX_CONGRATULATIONS = snd.sampleplayer.new("sounds/congratulations")
 
--- TOOLS / SPRITES
-local TYPE_EMPTY <const> = 0
-local TYPE_SOLID <const> = 1
-local TYPE_START <const> = 2
-local TYPE_EXIT <const> = 3
-local TYPE_DOOR <const> = 4
-local TYPE_KEY <const> = 5
-local TYPE_CLOCK <const> = 6
+-- filenames
+local gameStageFileName <const> = "data/gamestages"
+local userStageFileName <const> = "data/userstages"
 
 -- all loaded stagess will be stored in this table
 local stageData = {}
 local currentStageId = 1
+
+-- time
+local START_TIME_MS <const> = playdate.getCurrentTimeMilliseconds() - 33
+-- updated in playdate update
+local LAST_TIME_MS = START_TIME_MS
+local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
+print(deltaTimeSeconds)
+
 
 -- helper functions
 function i2xy(i)
@@ -73,7 +90,7 @@ end
 
 function clamp(value, min, max)
 	if value < min then return min end
-	if value > max then return max end
+	if max ~= nil and value > max then return max end
 	return value
 end
 
@@ -118,7 +135,10 @@ function setStageData(i, data)
 end
 
 
--- random values for adding jitter
+
+-------------------------------------------------------------------------------
+-- JITTER ---------------------------------------------------------------------
+-------------------------------------------------------------------------------
 local jitter = {}
 function jitter:init(numSamples)
 	self.numSamples = numSamples
@@ -155,11 +175,26 @@ function jitter:get()
 	return self.values[i-1], self.values[i]
 end
 
-
 jitter:init((STAGE_WIDTH+1) * (STAGE_HEIGHT+1))
 
 
--- stage
+-------------------------------------------------------------------------------
+-- GAME -----------------------------------------------------------------------
+-------------------------------------------------------------------------------
+local game = {}
+game.currentState = STATE_STAGE_PLAY
+game.inProgress = true
+game.startTimeMS = playdate.getCurrentTimeMilliseconds()
+game.timeRemaining = 10
+
+function game:addTime(seconds)
+	self.timeRemaining += seconds
+end
+
+
+-------------------------------------------------------------------------------
+-- STAGE ----------------------------------------------------------------------
+-------------------------------------------------------------------------------
 local stage = {}
 stage.time = 10
 stage.cells = table.create(STAGE_NUM_CELLS, 0)
@@ -230,7 +265,7 @@ function stage:drawToImage_IMG(image)
 end
 
 
-function stage:drawToImage(image)
+function stage:drawToImage(image, jitterScale)
 	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
 
@@ -239,7 +274,7 @@ function stage:drawToImage(image)
 	local size, offset = STAGE_CELLSIZE, STAGE_OFFSET
 
 	gfx.setColor(gfx.kColorWhite)
-	gfx.setLineWidth(2)
+	gfx.setLineWidth(4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleSquare) --kLineCapStyleRound)
 
 	for i = 1, STAGE_NUM_CELLS do
@@ -249,7 +284,7 @@ function stage:drawToImage(image)
 		local yp = y * size + offset
 
 		-- jitter for each corner x and y
-		local jitterScale = 4
+		local jitterScale = jitterScale or 0
 		local tlx, tly = jitter:getAtScaled(i, jitterScale)
 		local trx, try = jitter:getAtScaled(i+1, jitterScale)
 		local blx, bly = jitter:getAtScaled(i+STAGE_WIDTH, jitterScale)
@@ -366,7 +401,9 @@ end
 
 
 
--- player
+-------------------------------------------------------------------------------
+-- PLAYER ---------------------------------------------------------------------
+-------------------------------------------------------------------------------
 local player = {}
 player.x = 1
 player.y = 1
@@ -496,10 +533,12 @@ function player:tryMoveAndCollect(x, y)
 			SFX_GET_KEY:play()
 			return true
 		elseif typeId == TYPE_CLOCK then
+			game:addTime(2)
 			stage:editCell(x, y, TYPE_EMPTY)
 			SFX_GET_CLOCK:play()
 			return true
 		elseif typeId == TYPE_EXIT then
+			game.inProgress = false
 			SFX_STAGE_CLEAR:play()
 			return true
 		end
@@ -514,26 +553,33 @@ function player:tryMoveAndCollect(x, y)
 end
 
 
--- game
-local game = {}
-game.inProgress = false
-game.startTimeMS = playdate.getCurrentTimeMilliseconds()
-game.timeRemaining = 10
 
+-------------------------------------------------------------------------------
+-- MAIN -----------------------------------------------------------------------
+-------------------------------------------------------------------------------
 function game:update()
 	local prevTime = self.timeRemaining
 
 	if self.inProgress then
-		local elapsed = (playdate.getCurrentTimeMilliseconds() - self.startTimeMS) * 0.001
-		self.timeRemaining = clamp(stage.time - elapsed, 0, stage.time)
+		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 	end
 
 	if prevTime > 0 and self.timeRemaining == 0 then
 		SFX_TIME_OVER:play()
 		self.inProgress = false
-	elseif math.floor(prevTime) > math.floor(self.timeRemaining) then
-		SFX_TIME_TICK:play()
-	end 
+	elseif self.timeRemaining  then
+		if math.floor(prevTime) > math.floor(self.timeRemaining) then
+			SFX_TIME_TICK:play()
+		end
+		local t = self.timeRemaining % 1
+		local s = self.timeRemaining - t
+		local tlim = 0.5
+		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
+		if t >= tlim then
+			stage:drawToImage(stageImage, jitterScale)
+			gfx.sprite.redrawBackground()
+		end
+	end
 
 	player:update()
 
@@ -549,16 +595,11 @@ function game:update()
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	gfx.drawText(timeString, px+16, py-8)
 	gfx.setImageDrawMode(currentDrawMode)
-
-	-- print(timeString)
 end
 
 
-
--- MAIN -----
 function playdate.update()
 	game:update()
-
 end
 
 
