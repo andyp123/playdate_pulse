@@ -4,9 +4,29 @@ import "CoreLibs/sprites"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
 
+-- TODO:
+-- move input from player to main loop
+-- move edit state from player to game
+-- move jittered edges to foreground and draw each frame?
+-- input to player only during game and editor states
+-- title screen with jittering letter logo
+-- more efficient duplication of stage data on save/load (don't create new tables)
+-- game over state
+-- game clear state
+-- level select menu
+-- user stage editing
+-- stage editor menu
+-- 12 stages to start with
+-- think about modifications to gameplay... (5-7 modes?)
+-- - default controls (go as fast as possible)
+-- - randomised initial state controls
+-- - dark mode (stage only visible during pulse)
+-- - crank forward controls
+-- - no way back (blocks previously occupied are filled)
+-- polish
+
 local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
-
 
 -- global constants
 local STAGE_WIDTH <const> = 12
@@ -24,7 +44,6 @@ local STATE_STAGE_PLAY <const> = 3
 local STATE_STAGE_CLEAR <const> = 4
 local STATE_STAGE_FAIL <const> = 5
 local STATE_GAME_CLEAR <const> = 6
-
 
 -- tools / sprites
 local TYPE_EMPTY <const> = 0
