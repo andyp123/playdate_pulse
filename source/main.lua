@@ -83,13 +83,21 @@ local START_TIME_MS <const> = playdate.getCurrentTimeMilliseconds() - 33
 -- updated in playdate update
 local LAST_TIME_MS = START_TIME_MS
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
-print(deltaTimeSeconds)
 
 
 -- helper functions
 function i2xy(i)
+	i -= 1
 	local x = i % STAGE_WIDTH
-	local y = math.floor((i - x) / STAGE_WIDTH) + 1
+	local y = math.floor((i - x) / STAGE_WIDTH)
+	return x + 1, y + 1
+end
+
+
+function i2xy0(i)
+	i -= 1
+	local x = i % STAGE_WIDTH
+	local y = math.floor((i - x) / STAGE_WIDTH)
 	return x, y
 end
 
@@ -106,6 +114,7 @@ function isValidIndex(x, y)
 	end
 	return true
 end
+
 
 function clamp(value, min, max)
 	if value < min then return min end
@@ -124,9 +133,8 @@ function loadStagesFromFile(filename)
 	else
 		local cnt = table.getsize(data)
 		print(string.format("Loaded %d stages from '%s'", cnt, filename))
+		stageData = data
 	end
-
-	stageData = data
 end
 
 
