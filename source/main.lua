@@ -54,6 +54,17 @@ local TYPE_DOOR <const> = 4
 local TYPE_KEY <const> = 5
 local TYPE_CLOCK <const> = 6
 
+-- logo characters (x, y positions exported from blender. each letter is 3x3)
+-- offset should be 8 + multiple of 8
+-- scale should be multiple of 8. 24 is good. scale y should be inverted
+-- screen width: scale 24, offset per letter 80
+-- smaller: scale
+LOGO_P = { 0, 0, 1, 0, 2, 0, 2.38, -0.0761, 2.71, -0.293, 2.92, -0.617, 3, -1, 2.92, -1.38, 2.71, -1.71, 2.38, -1.92, 2, -2, 1, -2, 1, -3, 0, -3, 0, -2, 0, -1 }
+LOGO_U = { 0, -1, 0, -2, 0.0761, -2.38, 0.293, -2.71, 0.617, -2.92, 1, -3, 2, -3, 2.38, -2.92, 2.71, -2.71, 2.92, -2.38, 3, -2, 3, -1, 3, 0, 2, 0, 2, -1, 2, -2, 1, -2, 1, -1, 1, 0, 0, 0 }
+LOGO_L = { 0, -1, 0, -2, 0, -3, 1, -3, 2, -3, 3, -3, 3, -2, 2, -2, 1, -2, 1, -1, 1, 0, 0, 0 }
+LOGO_S = { 1, -3, 2, -3, 2.38, -2.92, 2.71, -2.71, 2.92, -2.38, 3, -2, 2.92, -1.62, 2.71, -1.29, 2.38, -1.08, 2, -1, 1, -1, 2, -1, 3, -1, 3, 0, 2, 0, 1, 0, 0.617, -0.0761, 0.293, -0.293, 0.0761, -0.617, 0, -1, 0.0761, -1.38, 0.293, -1.71, 0.617, -1.92, 1, -2, 2, -2, 1, -2, 0, -2, 0, -3 }
+LOGO_E = { 0, 0, 1, 0, 2, 0, 3, 0, 3, -1, 2, -1, 1, -1, 2, -1, 2, -2, 1, -2, 2, -2, 3, -2, 3, -3, 2, -3, 1, -3, 0, -3, 0, -2, 0, -1 }
+
 -- images
 local tileTable = gfx.imagetable.new("images/tiles")
 local spriteTable = gfx.imagetable.new("images/sprites")
@@ -123,6 +134,22 @@ function clamp(value, min, max)
 end
 
 
+function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
+	local cnt = table.getsize(lineData)
+	local p1x = x + lineData[1] * xScale
+	local p1y = y + lineData[2] * yScale
+	local sx, sy = p1x, p1y
+	for i=3, cnt-1, 2 do
+		local p2x = x + lineData[i] * xScale
+		local p2y = y + lineData[i+1] * yScale
+		gfx.drawLine(p1x, p1y, p2x, p2y)
+		p1x, p1y = p2x, p2y
+	end
+	-- draw line back to start of loop
+	gfx.drawLine(p1x, p1y, sx, sy)
+end
+
+
 
 -- saving and loadings stage data
 function loadStagesFromFile(filename)
@@ -167,6 +194,11 @@ end
 -- JITTER ---------------------------------------------------------------------
 -------------------------------------------------------------------------------
 local jitter = {}
+
+
+-- generates random direction vector for each vertex of the grid
+-- these will be used to offset or jitter the vertex positions
+-- during a pulse animation every second
 function jitter:init(numSamples)
 	self.numSamples = numSamples
 	self.nextSampleIdx = 1
@@ -342,6 +374,12 @@ function stage:drawToImage(image, jitterScale)
 			end
 		end
 	end
+
+	drawLineLoop(LOGO_P, 0, 16, 24, -24, 0)
+	drawLineLoop(LOGO_U, 80, 16, 24, -24, 0)
+	drawLineLoop(LOGO_L, 160, 16, 24, -24, 0)
+	drawLineLoop(LOGO_S, 240, 16, 24, -24, 0)
+	drawLineLoop(LOGO_E, 320, 16, 24, -24, 0)
 
 	gfx.unlockFocus()
 end
@@ -695,3 +733,5 @@ function initGame()
 end
 
 initGame()
+
+
