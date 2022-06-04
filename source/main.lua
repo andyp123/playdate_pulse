@@ -18,11 +18,14 @@ import "CoreLibs/crank"
 -- stage editor menu
 -- 12 stages to start with
 -- think about modifications to gameplay... (5-7 modes?)
--- - default controls (go as fast as possible)
--- - randomised initial state controls
+-- - default controls
+-- - crank forward controls (hold direction and use crank to move forward)
 -- - dark mode (stage only visible during pulse)
--- - crank forward controls
+-- - instant death mode (pushing into a wall or door fails you)
+-- - all corners mode (touch every tile)
+-- - collector (get every special item)
 -- - no way back (blocks previously occupied are filled)
+-- x randomised initial state controls
 -- polish
 
 local gfx <const> = playdate.graphics
@@ -134,23 +137,6 @@ function clamp(value, min, max)
 end
 
 
-function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
-	local cnt = table.getsize(lineData)
-	local p1x = x + lineData[1] * xScale
-	local p1y = y + lineData[2] * yScale
-	local sx, sy = p1x, p1y
-	for i=3, cnt-1, 2 do
-		local p2x = x + lineData[i] * xScale
-		local p2y = y + lineData[i+1] * yScale
-		gfx.drawLine(p1x, p1y, p2x, p2y)
-		p1x, p1y = p2x, p2y
-	end
-	-- draw line back to start of loop
-	gfx.drawLine(p1x, p1y, sx, sy)
-end
-
-
-
 -- saving and loadings stage data
 function loadStagesFromFile(filename)
 	local data = playdate.datastore.read(filename)
@@ -223,18 +209,66 @@ function jitter:getAtScaled(i, scale)
 end
 
 
-function jitter:get()
-	print(self.nextSampleIdx)
+function jitter:getScaled(scale)
+	-- print(self.nextSampleIdx)
 	local i = self.nextSampleIdx * 2
 	if self.nextSampleIdx == self.numSamples then
 		self.nextSampleIdx = 1
 	else
 		self.nextSampleIdx += 1
 	end
-	return self.values[i-1], self.values[i]
+	return self.values[i-1] * scale, self.values[i] * scale
 end
 
 jitter:init((STAGE_WIDTH+1) * (STAGE_HEIGHT+1))
+
+
+-- Logo drawing
+function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
+	local jx, jy = jitter:getScaled(jitterScale)
+	local cnt = table.getsize(lineData)
+	local p1x = x + jx + lineData[1] * xScale
+	local p1y = y + jy + lineData[2] * yScale
+	local sx, sy = p1x, p1y
+	for i=3, cnt-1, 2 do
+		jx, jy = jitter:getScaled(jitterScale)
+		local p2x = x + jx + lineData[i] * xScale
+		local p2y = y + jy + lineData[i+1] * yScale
+		gfx.drawLine(p1x, p1y, p2x, p2y)
+		p1x, p1y = p2x, p2y
+	end
+	-- draw line back to start of loop
+	gfx.drawLine(p1x, p1y, sx, sy)
+end
+
+function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth)
+	jitter.nextSampleIdx = 1
+	gfx.setLineWidth(lineWidth * 4)
+	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
+
+	local letterScale = letterSize / 3
+	local totalWidth = letterSize * 5 + letterSpacing * 4
+	local x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
+
+	gfx.setColor(gfx.kColorBlack)
+
+	for i = 1, 2 do
+		drawLineLoop(LOGO_P, x, y, letterScale, -letterScale, jitterScale)
+		x += letterSize + letterSpacing
+		drawLineLoop(LOGO_U, x, y, letterScale, -letterScale, jitterScale)
+		x += letterSize + letterSpacing
+		drawLineLoop(LOGO_L, x, y, letterScale, -letterScale, jitterScale)
+		x += letterSize + letterSpacing
+		drawLineLoop(LOGO_S, x, y, letterScale, -letterScale, jitterScale)
+		x += letterSize + letterSpacing
+		drawLineLoop(LOGO_E, x, y, letterScale, -letterScale, jitterScale)
+
+		jitter.nextSampleIdx = 1
+		gfx.setColor(gfx.kColorWhite)
+		gfx.setLineWidth(lineWidth)
+		x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
+	end
+end
 
 
 -------------------------------------------------------------------------------
@@ -243,8 +277,8 @@ jitter:init((STAGE_WIDTH+1) * (STAGE_HEIGHT+1))
 local game = {}
 game.currentState = STATE_STAGE_PLAY
 game.inProgress = true
-game.startTimeMS = playdate.getCurrentTimeMilliseconds()
 game.timeRemaining = 10
+game.timeSinceStart = 0 -- always ticks while in stage
 
 function game:addTime(seconds)
 	self.timeRemaining += seconds
@@ -334,7 +368,7 @@ function stage:drawToImage(image, jitterScale)
 
 	gfx.setColor(gfx.kColorWhite)
 	gfx.setLineWidth(4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleSquare) --kLineCapStyleRound)
+	gfx.setLineCapStyle(gfx.kLineCapStyleSquare) --gfx.kLineCapStyleRound)
 
 	for i = 1, STAGE_NUM_CELLS do
 		local y = math.floor((i-1) / STAGE_WIDTH)
@@ -343,7 +377,7 @@ function stage:drawToImage(image, jitterScale)
 		local yp = y * size + offset
 
 		-- jitter for each corner x and y
-		local jitterScale = jitterScale or 0
+		if jitterScale == nil then jitterScale = 0 end
 		local tlx, tly = jitter:getAtScaled(i, jitterScale)
 		local trx, try = jitter:getAtScaled(i+1, jitterScale)
 		local blx, bly = jitter:getAtScaled(i+STAGE_WIDTH, jitterScale)
@@ -375,11 +409,8 @@ function stage:drawToImage(image, jitterScale)
 		end
 	end
 
-	drawLineLoop(LOGO_P, 0, 16, 24, -24, 0)
-	drawLineLoop(LOGO_U, 80, 16, 24, -24, 0)
-	drawLineLoop(LOGO_L, 160, 16, 24, -24, 0)
-	drawLineLoop(LOGO_S, 240, 16, 24, -24, 0)
-	drawLineLoop(LOGO_E, 320, 16, 24, -24, 0)
+	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
+	drawLogo(200, 48, 72, 8, jitterScale, 4)
 
 	gfx.unlockFocus()
 end
@@ -623,43 +654,47 @@ end
 -- MAIN -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
 function game:update()
-	local prevTime = self.timeRemaining
+	self.timeSinceStart += deltaTimeSeconds
 
-	if self.inProgress then
-		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
-	end
 
-	if prevTime > 0 and self.timeRemaining == 0 then
-		SFX_TIME_OVER:play()
-		self.inProgress = false
-	elseif self.timeRemaining  then
-		if math.floor(prevTime) > math.floor(self.timeRemaining) then
-			SFX_TIME_TICK:play()
+	if not player.editmodeEnabled then
+		local prevTime = self.timeRemaining
+
+		if self.inProgress then
+			self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 		end
-		local t = self.timeRemaining % 1
-		local s = self.timeRemaining - t
-		local tlim = 0.5
-		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
-		if t >= tlim then
-			stage:drawToImage(stageImage, jitterScale)
-			gfx.sprite.redrawBackground()
+
+		if prevTime > 0 and self.timeRemaining == 0 then
+			SFX_TIME_OVER:play()
+			self.inProgress = false
+		elseif self.timeRemaining  then
+			if math.floor(prevTime) > math.floor(self.timeRemaining) then
+				SFX_TIME_TICK:play()
+			end
+			local t = self.timeRemaining % 1
+			local s = self.timeRemaining - t
+			local tlim = 0.5
+			jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
+			if t >= tlim then
+				stage:drawToImage(stageImage, jitterScale)
+				gfx.sprite.redrawBackground()
+			end
 		end
 	end
 
 	player:update()
-
-	-- draw all sprites and update timers
 	gfx.sprite.update()
 	playdate.timer.updateTimers()
 
-	local timeString = string.format("TIME: *%.3f*", self.timeRemaining)
-
-	-- seem to have issues if I do this before anything else...
-	local px,py = player.sprite:getPosition()
-	local currentDrawMode = gfx.getImageDrawMode()
-	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	gfx.drawText(timeString, px+16, py-8)
-	gfx.setImageDrawMode(currentDrawMode)
+	-- if not player.editmodeEnabled then
+	-- 	-- seem to have issues if I do this before anything else...
+	-- 	local timeString = string.format("TIME: *%.3f*", self.timeRemaining)
+	-- 	local px,py = player.sprite:getPosition()
+	-- 	local currentDrawMode = gfx.getImageDrawMode()
+	-- 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	-- 	gfx.drawText(timeString, px+16, py-8)
+	-- 	gfx.setImageDrawMode(currentDrawMode)
+	-- end
 end
 
 
