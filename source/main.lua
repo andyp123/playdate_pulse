@@ -61,7 +61,7 @@ local TYPE_CLOCK <const> = 6
 -- offset should be 8 + multiple of 8
 -- scale should be multiple of 8. 24 is good. scale y should be inverted
 -- screen width: scale 24, offset per letter 80
--- smaller: scale
+-- drawLogo(200, 48, 72, 8, jitterScale, 4) <- this fits the logo perfectly across the top of the screen
 LOGO_P = { 0, 0, 1, 0, 2, 0, 2.38, -0.0761, 2.71, -0.293, 2.92, -0.617, 3, -1, 2.92, -1.38, 2.71, -1.71, 2.38, -1.92, 2, -2, 1, -2, 1, -3, 0, -3, 0, -2, 0, -1 }
 LOGO_U = { 0, -1, 0, -2, 0.0761, -2.38, 0.293, -2.71, 0.617, -2.92, 1, -3, 2, -3, 2.38, -2.92, 2.71, -2.71, 2.92, -2.38, 3, -2, 3, -1, 3, 0, 2, 0, 2, -1, 2, -2, 1, -2, 1, -1, 1, 0, 0, 0 }
 LOGO_L = { 0, -1, 0, -2, 0, -3, 1, -3, 2, -3, 3, -3, 3, -2, 2, -2, 1, -2, 1, -1, 1, 0, 0, 0 }
@@ -72,6 +72,8 @@ LOGO_E = { 0, 0, 1, 0, 2, 0, 3, 0, 3, -1, 2, -1, 1, -1, 2, -1, 2, -2, 1, -2, 2, 
 local tileTable = gfx.imagetable.new("images/tiles")
 local spriteTable = gfx.imagetable.new("images/sprites")
 local stageImage = gfx.image.new(400, 240, gfx.kColorBlack)
+local font = gfx.font.new("fonts/Roobert-20-Medium")
+gfx.setFont(font)
 
 -- sounds
 SFX_MOVE = snd.sampleplayer.new("sounds/move")
@@ -93,9 +95,7 @@ local stageData = {}
 local currentStageId = 1
 
 -- time
-local START_TIME_MS <const> = playdate.getCurrentTimeMilliseconds() - 33
--- updated in playdate update
-local LAST_TIME_MS = START_TIME_MS
+local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
 
@@ -241,7 +241,7 @@ function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
 	gfx.drawLine(p1x, p1y, sx, sy)
 end
 
-function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth)
+function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, invertColors)
 	jitter.nextSampleIdx = 1
 	gfx.setLineWidth(lineWidth * 4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
@@ -249,8 +249,10 @@ function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth)
 	local letterScale = letterSize / 3
 	local totalWidth = letterSize * 5 + letterSpacing * 4
 	local x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
+	local bgcolor, fgcolor = gfx.kColorBlack, gfx.kColorWhite
+	if invertColors then bgcolor, fgcolor = gfx.kColorWhite, gfx.kColorBlack end
 
-	gfx.setColor(gfx.kColorBlack)
+	gfx.setColor(bgcolor)
 
 	for i = 1, 2 do
 		drawLineLoop(LOGO_P, x, y, letterScale, -letterScale, jitterScale)
@@ -264,24 +266,76 @@ function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth)
 		drawLineLoop(LOGO_E, x, y, letterScale, -letterScale, jitterScale)
 
 		jitter.nextSampleIdx = 1
-		gfx.setColor(gfx.kColorWhite)
+		gfx.setColor(fgcolor)
 		gfx.setLineWidth(lineWidth)
 		x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
 	end
 end
 
 
+-- fade - 0 black - 1 white
+-- text animation
+-- jitter animation
+-- logo animation
+function drawTitleScreen(image, jitterScale)
+	image:clear(gfx.kColorBlack)
+	gfx.lockFocus(image)
+
+	local width, height = STAGE_WIDTH, STAGE_HEIGHT
+	local size, offset = STAGE_CELLSIZE, STAGE_OFFSET
+
+	gfx.setColor(gfx.kColorWhite)
+	gfx.setLineWidth(4)
+	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
+
+	for i = 1, STAGE_NUM_CELLS do
+		local y = math.floor((i-1) / STAGE_WIDTH)
+		local x = i - (STAGE_WIDTH * y) - 1
+		local xp = x * size + offset
+		local yp = y * size + offset
+		tileTable:drawImage(1, xp, yp)
+	end
+
+	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
+	drawLogo(200, 48, 72, 8, jitterScale, 4, false)
+
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for options", 200, 140, kTextAlignment.center)
+
+	gfx.unlockFocus()
+end
+
 -------------------------------------------------------------------------------
 -- GAME -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
 local game = {}
 game.currentState = STATE_STAGE_PLAY
+game.timeInState = 0
 game.inProgress = true
 game.timeRemaining = 10
-game.timeSinceStart = 0 -- always ticks while in stage
 
 function game:addTime(seconds)
 	self.timeRemaining += seconds
+end
+
+function game:changeState(state)
+	local error = false
+
+	if state == STATE_TITLE then
+	elseif state == STATE_STAGE_WAIT then
+	elseif state == STATE_STAGE_PLAY then
+	elseif state == STATE_STAGE_CLEAR then
+	elseif state == STATE_STAGE_FAIL then
+	elseif state == STATE_GAME_CLEAR then
+	else
+		print(string.format("Error: '%d' is an unknown state."))
+		error = true
+	end
+
+	if not error then
+		self.currentState = state
+		self.timeInState = 0
+	end
 end
 
 
@@ -323,38 +377,6 @@ function stage:getData()
 		data.cells[i] = self.cells[i]
 	end
 	return data
-end
-
-
--- unused simple version without jitter etc.
-function stage:drawToImage_IMG(image)
-	image:clear(gfx.kColorBlack)
-	gfx.lockFocus(image)
-
-	local cells = self.cells
-	local width, height = STAGE_WIDTH, STAGE_HEIGHT
-	local size, offset = STAGE_CELLSIZE, STAGE_OFFSET
-
-	for i = 1, STAGE_NUM_CELLS do
-		local y = math.floor((i-1) / STAGE_WIDTH)
-		local x = i - (STAGE_WIDTH * y) - 1
-		local idx = 0
-
-		if cells[i] ~= 1 then
-			-- calculate the tile index
-			-- t, r, b, l order (t=1, r=2, b=4, l=8)
-			local t, r, b, l = 0, 0, 0, 0
-			if y == 0 or cells[i-width] == 1 then t = 1 end
-			if x == width - 1 or cells[i+1] == 1 then r = 2 end
-			if y == height - 1 or cells[i+width] == 1 then b = 4 end
-			if x == 0 or cells[i-1] == 1 then l = 8 end
-			idx = t + r + b + l
-			if idx == 0 then idx = -1 end
-		end
-		tileTable:drawImage(idx + 1, x * size + offset, y * size + offset)
-	end
-
-	gfx.unlockFocus()
 end
 
 
@@ -654,37 +676,61 @@ end
 -- MAIN -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
 function game:update()
-	self.timeSinceStart += deltaTimeSeconds
+	self.timeInState += deltaTimeSeconds
 
+	local state = self.currentState
+	if state == STATE_TITLE then
+		-- draw and update title screen
+		local prevTime = totalTimeSeconds - deltaTimeSeconds
+		local t = 1 - totalTimeSeconds % 1
+		local tlim = 0.5
+		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
+		if t >= tlim then
+			drawTitleScreen(stageImage, jitterScale)
+			-- gfx.sprite.redrawBackground()
+			gfx.sprite.addDirtyRect(0,0,400,100)
+		end
+	elseif state == STATE_STAGE_WAIT then
+		-- play stage intro
+	elseif state == STATE_STAGE_PLAY then
+		-- regular play
+		if not player.editmodeEnabled then
+			local prevTime = self.timeRemaining
 
-	if not player.editmodeEnabled then
-		local prevTime = self.timeRemaining
+			if self.inProgress then
+				self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
+			end
 
-		if self.inProgress then
-			self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
+			if prevTime > 0 and self.timeRemaining == 0 then
+				SFX_TIME_OVER:play()
+				self.inProgress = false
+			elseif self.timeRemaining  then
+				if math.floor(prevTime) > math.floor(self.timeRemaining) then
+					SFX_TIME_TICK:play()
+				end
+				local t = self.timeRemaining % 1
+				local s = self.timeRemaining - t
+				local tlim = 0.5
+				jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
+				if t >= tlim then
+					stage:drawToImage(stageImage, jitterScale)
+					gfx.sprite.redrawBackground()
+				end
+			end
 		end
 
-		if prevTime > 0 and self.timeRemaining == 0 then
-			SFX_TIME_OVER:play()
-			self.inProgress = false
-		elseif self.timeRemaining  then
-			if math.floor(prevTime) > math.floor(self.timeRemaining) then
-				SFX_TIME_TICK:play()
-			end
-			local t = self.timeRemaining % 1
-			local s = self.timeRemaining - t
-			local tlim = 0.5
-			jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
-			if t >= tlim then
-				stage:drawToImage(stageImage, jitterScale)
-				gfx.sprite.redrawBackground()
-			end
-		end
+		player:update()
+	elseif state == STATE_STAGE_CLEAR then
+		-- play stage clear anim, advance stage
+	elseif state == STATE_STAGE_FAIL then
+		-- play stage fail anim
+	elseif state == STATE_GAME_CLEAR then
+		-- play game/course clear anim
+	else
 	end
 
-	player:update()
-	gfx.sprite.update()
-	playdate.timer.updateTimers()
+
+
 
 	-- if not player.editmodeEnabled then
 	-- 	-- seem to have issues if I do this before anything else...
@@ -699,7 +745,12 @@ end
 
 
 function playdate.update()
+	totalTimeSeconds += deltaTimeSeconds
+
 	game:update()
+
+	gfx.sprite.update()
+	playdate.timer.updateTimers()
 end
 
 
@@ -769,4 +820,12 @@ end
 
 initGame()
 
+-- drawTitleScreen(stageImage, 0)
+-- gfx.sprite.setBackgroundDrawingCallback(
+-- 	function(x, y, width, height)
+-- 		gfx.setClipRect(x, y, width, height)
+-- 		stageImage:draw(0, 0)
+-- 		gfx.clearClipRect()
+-- 	end
+-- )
 
