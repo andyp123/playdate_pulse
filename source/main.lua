@@ -364,7 +364,6 @@ function game:drawTransition(drawMode)
 	gfx.lockFocus(transitionImage)
 
 	local frameId = math.ceil(self.stateTransitionAnimator:currentValue())
-	print(totalTimeSeconds, frameId)
 	local frameImage = transition1Table:getImage(frameId)
 	local tileSize = 32
 	local width = math.ceil(400 / tileSize) -- fill whole screen (400x240)
@@ -472,9 +471,6 @@ function stage:drawToImage(image, jitterScale)
 			end
 		end
 	end
-
-	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
-	drawLogo(200, 48, 72, 8, jitterScale, 4)
 
 	gfx.unlockFocus()
 end
@@ -758,7 +754,7 @@ function game:update()
 
 	if not self.stateTransitionAnimator:ended() then
 		transitionSprite:setVisible(true)
-		self:drawTransition()
+		self:drawTransition(gfx.kDrawModeBlackTransparent)
 	else
 		transitionSprite:setVisible(false)
 	end
