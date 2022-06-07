@@ -3,14 +3,16 @@ import "CoreLibs/graphics"
 import "CoreLibs/sprites"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
+import 'CoreLibs/animator'
+import 'CoreLibs/easing'
 
--- TODO:
+-- TODO: (+ done, x cancelled)
 -- move input from player to main loop
 -- move edit state from player to game
--- move jittered edges to foreground and draw each frame?
 -- input to player only during game and editor states
--- title screen with jittering letter logo
--- more efficient duplication of stage data on save/load (don't create new tables)
+
+-- + title screen with jittering letter logo
+-- fade transitions between states
 -- game over state
 -- game clear state
 -- level select menu
@@ -27,6 +29,8 @@ import "CoreLibs/crank"
 -- - no way back (blocks previously occupied are filled)
 -- x randomised initial state controls
 -- polish
+-- - more efficient duplication of stage data on save/load (don't create new tables)
+-- - move jittered edges to foreground and draw each frame?
 
 local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
@@ -71,7 +75,14 @@ LOGO_E = { 0, 0, 1, 0, 2, 0, 3, 0, 3, -1, 2, -1, 1, -1, 2, -1, 2, -2, 1, -2, 2, 
 -- images
 local tileTable = gfx.imagetable.new("images/tiles")
 local spriteTable = gfx.imagetable.new("images/sprites")
-local stageImage = gfx.image.new(400, 240, gfx.kColorBlack)
+local transition1Table = gfx.imagetable.new("images/transition1")
+local stageImage = gfx.image.new(400, 240, gfx.kColorClear)
+local transitionImage = gfx.image.new(400, 240)
+local transitionSprite = gfx.sprite.new(transitionImage)
+transitionSprite:add()
+transitionSprite:setZIndex(32100)
+transitionSprite:moveTo(200,120)
+transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
 local font = gfx.font.new("fonts/Roobert-20-Medium")
 gfx.setFont(font)
 
@@ -100,18 +111,20 @@ local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
 
 -- helper functions
-function i2xy(i)
+function i2xy(i, w)
+	w = w or STAGE_WIDTH
 	i -= 1
-	local x = i % STAGE_WIDTH
-	local y = math.floor((i - x) / STAGE_WIDTH)
+	local x = i % w
+	local y = math.floor((i - x) / w)
 	return x + 1, y + 1
 end
 
 
-function i2xy0(i)
+function i2xy0(i, w)
+	w = w or STAGE_WIDTH
 	i -= 1
-	local x = i % STAGE_WIDTH
-	local y = math.floor((i - x) / STAGE_WIDTH)
+	local x = i % w
+	local y = math.floor((i - x) / w)
 	return x, y
 end
 
@@ -241,6 +254,7 @@ function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
 	gfx.drawLine(p1x, p1y, sx, sy)
 end
 
+
 function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, invertColors)
 	jitter.nextSampleIdx = 1
 	gfx.setLineWidth(lineWidth * 4)
@@ -289,8 +303,7 @@ function drawTitleScreen(image, jitterScale)
 	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
 
 	for i = 1, STAGE_NUM_CELLS do
-		local y = math.floor((i-1) / STAGE_WIDTH)
-		local x = i - (STAGE_WIDTH * y) - 1
+		local x, y = i2xy0(i)
 		local xp = x * size + offset
 		local yp = y * size + offset
 		tileTable:drawImage(1, xp, yp)
@@ -305,14 +318,17 @@ function drawTitleScreen(image, jitterScale)
 	gfx.unlockFocus()
 end
 
+
+
 -------------------------------------------------------------------------------
 -- GAME -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
 local game = {}
 game.currentState = STATE_STAGE_PLAY
 game.timeInState = 0
-game.inProgress = true
 game.timeRemaining = 10
+game.transitionDuration = 1000
+game.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 8, 1, playdate.easingFunctions.inQuad)
 
 function game:addTime(seconds)
 	self.timeRemaining += seconds
@@ -335,9 +351,35 @@ function game:changeState(state)
 	if not error then
 		self.currentState = state
 		self.timeInState = 0
+		self.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 8, 1, playdate.easingFunctions.inQuad)
 	end
 end
 
+
+function game:drawTransition(drawMode)
+	if drawMode ~= nil then
+		transitionSprite:setImageDrawMode(drawMode)
+	end
+
+	gfx.lockFocus(transitionImage)
+
+	local frameId = math.ceil(self.stateTransitionAnimator:currentValue())
+	print(totalTimeSeconds, frameId)
+	local frameImage = transition1Table:getImage(frameId)
+	local tileSize = 32
+	local width = math.ceil(400 / tileSize) -- fill whole screen (400x240)
+	local cnt = width * math.ceil(240 / tileSize)
+
+	for i = 1, cnt do
+		local xpos, ypos = i2xy0(i, width)
+		xpos = xpos * tileSize
+		ypos = ypos * tileSize
+		frameImage:draw(xpos, ypos)
+	end
+
+	gfx.unlockFocus()
+	gfx.sprite.addDirtyRect(0, 0, 400, 240)
+end
 
 -------------------------------------------------------------------------------
 -- STAGE ----------------------------------------------------------------------
@@ -457,6 +499,9 @@ function stage:editCell(x, y, typeId)
 	local cells = self.cells
 	local prevId = cells[i]
 
+
+	print(string.format("%d: %d, %d (%d > %d)", i, x, y, prevId, typeId))
+
 	-- does the edit modify the stage cells?
 	if typeId == TYPE_SOLID or prevId == TYPE_SOLID then
 		if typeId == TYPE_SOLID then
@@ -530,8 +575,8 @@ player.frame = 1
 player.image1 = nil
 player.image2 = nil
 player.sprite = nil
-player.editmodeEnabled = false
-player.editmodeTypeId = TYPE_SOLID
+player.editModeEnabled = false
+player.editModeTypeId = TYPE_SOLID
 
 function player:init()
 	self.image1 = spriteTable:getImage(13)
@@ -540,6 +585,11 @@ function player:init()
 	self.sprite:moveTo(SPRITE_OFFSET, SPRITE_OFFSET)
 	self.sprite:add()
 	self.sprite:setZIndex(32000)
+end
+
+
+function player:setVisible(isVisible)
+	self.sprite:setVisible(isVisible)
 end
 
 
@@ -553,6 +603,7 @@ function player:moveTo(x, y)
 	end
 end
 
+
 function player:update()
 	-- movement
 	local mx, my = 0, 0
@@ -560,42 +611,57 @@ function player:update()
 	if playdate.buttonJustPressed(playdate.kButtonRight) then mx = 1 end
 	if playdate.buttonJustPressed(playdate.kButtonUp)    then my = -1 end
 	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
-	if mx ~= 0 or my ~= 0 then
-		if self.editmodeEnabled then
-			self:tryMoveEditMode(mx, my)
-		else
+	if not self.editModeEnabled then
+		if mx ~= 0 or my ~= 0 then
 			self:tryMove(mx, my)
 		end
-	end
-
-	if self.editmodeEnabled then
-		if playdate.buttonJustPressed(playdate.kButtonA) then
-			stage:editCell(self.x, self.y, self.editmodeTypeId)
-		end
-
-		if playdate.buttonJustPressed(playdate.kButtonB) then
-			saveStage(currentStageId)
-		end
-
-		local crankChange = playdate.getCrankChange()
-		if crankChange ~= 0 then
-			self:updateEditModeType()
-		end
+	else
+		self:editModeUpdate(mx, my)
 	end
 end
 
-function player:updateEditModeType()
+
+function player:editModeUpdate(mx, my)
+	if mx ~= 0 or my ~= 0 then
+		self:editModeTryMove(mx, my)
+	end
+
+	if playdate.buttonJustPressed(playdate.kButtonA) then
+		stage:editCell(self.x, self.y, self.editModeTypeId)
+	end
+
+	if playdate.buttonJustPressed(playdate.kButtonB) then
+		saveStage(currentStageId)
+	end
+
+	if playdate.getCrankChange() ~= 0 then
+		self:editModeUpdateType()
+	end
+end
+
+
+function player:editModeTryMove(mx, my)
+	if isValidIndex(self.x + mx, self.y + my) then
+		self.x += mx
+		self.y += my
+		self.sprite:moveBy(mx * STAGE_CELLSIZE, my * STAGE_CELLSIZE)
+	end
+end
+
+
+function player:editModeUpdateType()
 	local crankPos = playdate.getCrankPosition()
 	local segmentSize = 360 / TYPE_CLOCK
 	local adjustedPos = (crankPos + segmentSize * 0.5) % 360
 	local typeId = math.floor(adjustedPos / segmentSize) + 1
-	self.editmodeTypeId = typeId
-	if self.editmodeEnabled then self:updateSpriteImage() end
+	self.editModeTypeId = typeId
+	if self.editModeEnabled then self:updateSpriteImage() end
 end
 
+
 function player:updateSpriteImage()
-	if self.editmodeEnabled then
-		self.sprite:setImage(spriteTable:getImage(self.editmodeTypeId))
+	if self.editModeEnabled then
+		self.sprite:setImage(spriteTable:getImage(self.editModeTypeId))
 	else
 		if self.keys > 0 then
 			self.sprite:setImage(spriteTable:getImage(TYPE_KEY))
@@ -604,15 +670,6 @@ function player:updateSpriteImage()
 			if self.frame == 1 then self.sprite:setImage(self.image1)
 			else self.sprite:setImage(self.image2) end
 		end
-	end
-end
-
-
-function player:tryMoveEditMode(mx, my)
-	if isValidIndex(self.x + mx, self.y + my) then
-		self.x += mx
-		self.y += my
-		self.sprite:moveBy(mx * STAGE_CELLSIZE, my * STAGE_CELLSIZE)
 	end
 end
 
@@ -626,6 +683,7 @@ function player:tryMove(mx, my)
 		self:updateSpriteImage()
 	end
 end
+
 
 function player:tryMoveAndCollect(x, y)
 	if isValidIndex(x, y) then
@@ -673,53 +731,22 @@ end
 
 
 -------------------------------------------------------------------------------
--- MAIN -----------------------------------------------------------------------
+-- GAME UPDATE FUNCTIONS ------------------------------------------------------
 -------------------------------------------------------------------------------
 function game:update()
 	self.timeInState += deltaTimeSeconds
 
 	local state = self.currentState
 	if state == STATE_TITLE then
-		-- draw and update title screen
-		local prevTime = totalTimeSeconds - deltaTimeSeconds
-		local t = 1 - totalTimeSeconds % 1
-		local tlim = 0.5
-		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
-		if t >= tlim then
-			drawTitleScreen(stageImage, jitterScale)
-			-- gfx.sprite.redrawBackground()
-			gfx.sprite.addDirtyRect(0,0,400,100)
-		end
+		self:updateTitle()
 	elseif state == STATE_STAGE_WAIT then
 		-- play stage intro
 	elseif state == STATE_STAGE_PLAY then
-		-- regular play
-		if not player.editmodeEnabled then
-			local prevTime = self.timeRemaining
-
-			if self.inProgress then
-				self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
-			end
-
-			if prevTime > 0 and self.timeRemaining == 0 then
-				SFX_TIME_OVER:play()
-				self.inProgress = false
-			elseif self.timeRemaining  then
-				if math.floor(prevTime) > math.floor(self.timeRemaining) then
-					SFX_TIME_TICK:play()
-				end
-				local t = self.timeRemaining % 1
-				local s = self.timeRemaining - t
-				local tlim = 0.5
-				jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
-				if t >= tlim then
-					stage:drawToImage(stageImage, jitterScale)
-					gfx.sprite.redrawBackground()
-				end
-			end
+		if not player.editModeEnabled then
+			self:updateGame()
+		else
+			self:updateEditMode()
 		end
-
-		player:update()
 	elseif state == STATE_STAGE_CLEAR then
 		-- play stage clear anim, advance stage
 	elseif state == STATE_STAGE_FAIL then
@@ -729,21 +756,75 @@ function game:update()
 	else
 	end
 
-
-
-
-	-- if not player.editmodeEnabled then
-	-- 	-- seem to have issues if I do this before anything else...
-	-- 	local timeString = string.format("TIME: *%.3f*", self.timeRemaining)
-	-- 	local px,py = player.sprite:getPosition()
-	-- 	local currentDrawMode = gfx.getImageDrawMode()
-	-- 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	-- 	gfx.drawText(timeString, px+16, py-8)
-	-- 	gfx.setImageDrawMode(currentDrawMode)
-	-- end
+	if not self.stateTransitionAnimator:ended() then
+		transitionSprite:setVisible(true)
+		self:drawTransition()
+	else
+		transitionSprite:setVisible(false)
+	end
 end
 
 
+function game:updateTitle()
+	-- draw and update title screen
+	local prevTime = totalTimeSeconds - deltaTimeSeconds
+	local t = 1 - totalTimeSeconds % 1
+	local tlim = 0.5
+	jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
+	if t >= tlim then
+		drawTitleScreen(stageImage, jitterScale)
+		-- only redraw the whole screen after transition
+		if game.timeInState > deltaTimeSeconds then
+			gfx.sprite.addDirtyRect(0,0,400,100)
+		else
+			gfx.sprite.redrawBackground()
+		end
+	end
+
+	-- start the game when A button pressed
+	if playdate.buttonJustPressed(playdate.kButtonA) and self.stateTransitionAnimator:ended() then
+		player:setVisible(true)
+		loadStage(currentStageId)
+		game:changeState(STATE_STAGE_PLAY)
+	end
+end
+
+function game:updateGame()
+	if self.stateTransitionAnimator:ended() then
+		local prevTime = self.timeRemaining
+
+		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
+
+		if prevTime > 0 and self.timeRemaining == 0 then
+			SFX_TIME_OVER:play()
+			-- DO SOMETHING
+		elseif self.timeRemaining  then
+			if math.floor(prevTime) > math.floor(self.timeRemaining) then
+				SFX_TIME_TICK:play()
+			end
+			local t = self.timeRemaining % 1
+			local s = self.timeRemaining - t
+			local tlim = 0.5
+			jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
+			if t >= tlim then
+				stage:drawToImage(stageImage, jitterScale)
+				gfx.sprite.redrawBackground()
+			end
+		end
+
+		player:update()
+	end
+end
+
+function game:updateEditMode()
+	player:update()
+end
+
+
+
+-------------------------------------------------------------------------------
+-- MAIN -----------------------------------------------------------------------
+-------------------------------------------------------------------------------
 function playdate.update()
 	totalTimeSeconds += deltaTimeSeconds
 
@@ -751,6 +832,14 @@ function playdate.update()
 
 	gfx.sprite.update()
 	playdate.timer.updateTimers()
+
+	-- -- seem to have issues if I do this before anything else...
+	-- local timeString = string.format("%.3f", game.timeRemaining)
+	-- local px,py = player.sprite:getPosition()
+	-- local currentDrawMode = gfx.getImageDrawMode()
+	-- gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	-- gfx.drawText(timeString, px+16, py-8)
+	-- gfx.setImageDrawMode(currentDrawMode)
 end
 
 
@@ -789,9 +878,13 @@ end
 function initGame()
 	-- initialize stage data and load a stage
 	loadStagesFromFile(gameStageFileName)
-	stage:clear()
+	stage:clear() -- need to fill with some valid data
+	stageImage:clear(gfx.kColorBlack)
 	player:init() -- make sure sprite initialized!
-	loadStage(currentStageId)
+	player:setVisible(false)
+	-- loadStage(currentStageId)
+
+	game:changeState(STATE_TITLE)
 
 	gfx.sprite.setBackgroundDrawingCallback(
 		function(x, y, width, height)
@@ -804,8 +897,8 @@ function initGame()
 	-- add menu option
 	local menu = playdate.getSystemMenu()
 	local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
-		player.editmodeEnabled = not player.editmodeEnabled
-		player:updateEditModeType() -- make sure correct tool is set
+		player.editModeEnabled = not player.editModeEnabled
+		player:editModeUpdateType() -- make sure correct tool is set
 		player:updateSpriteImage()
 		if value then
 			local menuitem = menu:addMenuItem("Save Stage", function()
@@ -819,13 +912,3 @@ function initGame()
 end
 
 initGame()
-
--- drawTitleScreen(stageImage, 0)
--- gfx.sprite.setBackgroundDrawingCallback(
--- 	function(x, y, width, height)
--- 		gfx.setClipRect(x, y, width, height)
--- 		stageImage:draw(0, 0)
--- 		gfx.clearClipRect()
--- 	end
--- )
-
