@@ -324,34 +324,70 @@ end
 -- GAME -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
 local game = {}
+-- state machine for areas of the game
 game.currentState = STATE_STAGE_PLAY
 game.timeInState = 0
-game.timeRemaining = 10
 game.transitionDuration = 1000
-game.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 8, 1, playdate.easingFunctions.inQuad)
+game.transitionEasingType = playdate.easingFunctions.inOutQuad
+game.transitionNextState = -1 -- if a transition has ended and this is > 0, it will change state and start another transition
+game.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 1.0, 0.0, game.transitionEasingType)
+-- game state
+game.inPlay = false
+game.timeRemaining = 10
+
 
 function game:addTime(seconds)
 	self.timeRemaining += seconds
 end
 
-function game:changeState(state)
-	local error = false
 
-	if state == STATE_TITLE then
-	elseif state == STATE_STAGE_WAIT then
-	elseif state == STATE_STAGE_PLAY then
-	elseif state == STATE_STAGE_CLEAR then
-	elseif state == STATE_STAGE_FAIL then
-	elseif state == STATE_GAME_CLEAR then
-	else
-		print(string.format("Error: '%d' is an unknown state."))
-		error = true
+function game:inTransition()
+	if not self.stateTransitionAnimator:ended() or self.transitionNextState > 0 then
+		return true
 	end
 
-	if not error then
-		self.currentState = state
-		self.timeInState = 0
-		self.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 8, 1, playdate.easingFunctions.inQuad)
+	return false
+end
+
+
+function game:changeState(state, skipFadeOut)
+	game.transitionNextState = state
+
+	if skipFadeOut then
+		self:enterNextState()
+	else
+		self.stateTransitionAnimator = gfx.animator.new(self.transitionDuration, 0.0, 1.0, self.transitionEasingType)
+	end
+end
+
+
+function game:enterNextState(skipFadeIn)
+	if self.transitionNextState < STATE_TITLE then
+		return
+	end
+
+	self.currentState = self.transitionNextState
+	self.transitionNextState = -1
+	self.timeInState = 0
+	if not skipFadeIn then
+		self.stateTransitionAnimator = gfx.animator.new(self.transitionDuration, 1.0, 0.0, self.transitionEasingType)
+	end
+
+	self:handleStateEntry()
+end
+
+
+function game:updateTransition()
+	if self.transitionNextState > 0 then
+		if self.stateTransitionAnimator:ended() then
+			self:enterNextState()
+		end
+	end
+
+	local visible = (math.floor(self.stateTransitionAnimator:currentValue() * 8) > 0)
+	transitionSprite:setVisible(visible)
+	if visible then
+		self:drawTransition(gfx.kDrawModeBlackTransparent)
 	end
 end
 
@@ -363,7 +399,9 @@ function game:drawTransition(drawMode)
 
 	gfx.lockFocus(transitionImage)
 
-	local frameId = math.ceil(self.stateTransitionAnimator:currentValue())
+	local t = self.stateTransitionAnimator:currentValue()
+	local frameId = clamp(math.floor(t * 9), 1, 8)
+	-- print(t, frameId)
 	local frameImage = transition1Table:getImage(frameId)
 	local tileSize = 32
 	local width = math.ceil(400 / tileSize) -- fill whole screen (400x240)
@@ -379,6 +417,8 @@ function game:drawTransition(drawMode)
 	gfx.unlockFocus()
 	gfx.sprite.addDirtyRect(0, 0, 400, 240)
 end
+
+
 
 -------------------------------------------------------------------------------
 -- STAGE ----------------------------------------------------------------------
@@ -496,7 +536,7 @@ function stage:editCell(x, y, typeId)
 	local prevId = cells[i]
 
 
-	print(string.format("%d: %d, %d (%d > %d)", i, x, y, prevId, typeId))
+	-- print(string.format("%d: %d, %d (%d > %d)", i, x, y, prevId, typeId))
 
 	-- does the edit modify the stage cells?
 	if typeId == TYPE_SOLID or prevId == TYPE_SOLID then
@@ -729,6 +769,18 @@ end
 -------------------------------------------------------------------------------
 -- GAME UPDATE FUNCTIONS ------------------------------------------------------
 -------------------------------------------------------------------------------
+function game:handleStateEntry()
+		-- handle specific state functions
+	local state = self.currentState
+	if state == STATE_STAGE_PLAY then
+		player:setVisible(true)
+		loadStage(currentStageId)
+	else
+		player:setVisible(false)
+	end
+end
+
+
 function game:update()
 	self.timeInState += deltaTimeSeconds
 
@@ -752,12 +804,7 @@ function game:update()
 	else
 	end
 
-	if not self.stateTransitionAnimator:ended() then
-		transitionSprite:setVisible(true)
-		self:drawTransition(gfx.kDrawModeBlackTransparent)
-	else
-		transitionSprite:setVisible(false)
-	end
+	self:updateTransition()
 end
 
 
@@ -778,15 +825,13 @@ function game:updateTitle()
 	end
 
 	-- start the game when A button pressed
-	if playdate.buttonJustPressed(playdate.kButtonA) and self.stateTransitionAnimator:ended() then
-		player:setVisible(true)
-		loadStage(currentStageId)
+	if playdate.buttonJustPressed(playdate.kButtonA) and not self:inTransition() then
 		game:changeState(STATE_STAGE_PLAY)
 	end
 end
 
 function game:updateGame()
-	if self.stateTransitionAnimator:ended() then
+	if not self:inTransition() then
 		local prevTime = self.timeRemaining
 
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
@@ -878,9 +923,8 @@ function initGame()
 	stageImage:clear(gfx.kColorBlack)
 	player:init() -- make sure sprite initialized!
 	player:setVisible(false)
-	-- loadStage(currentStageId)
 
-	game:changeState(STATE_TITLE)
+	game:changeState(STATE_TITLE, true)
 
 	gfx.sprite.setBackgroundDrawingCallback(
 		function(x, y, width, height)
