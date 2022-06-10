@@ -12,7 +12,7 @@ import 'CoreLibs/easing'
 -- input to player only during game and editor states
 
 -- + title screen with jittering letter logo
--- fade transitions between states
+-- + fade transitions between states
 -- game over state
 -- game clear state
 -- level select menu
@@ -111,6 +111,16 @@ local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
 
 -- helper functions
+-- https://stackoverflow.com/questions/2705793/how-to-get-number-of-entries-in-a-lua-table
+-- why the actual fuck is this not built in to lua?
+-- Playdate's table.getsize appears to not work for the stage data.
+function tablelength(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
+
 function i2xy(i, w)
 	w = w or STAGE_WIDTH
 	i -= 1
@@ -150,6 +160,12 @@ function clamp(value, min, max)
 end
 
 
+function getNumStages()
+	if stageData ~= nil then return tablelength(stageData) end
+	return 0
+end
+
+
 -- saving and loadings stage data
 function loadStagesFromFile(filename)
 	local data = playdate.datastore.read(filename)
@@ -157,17 +173,21 @@ function loadStagesFromFile(filename)
 	if data == nil then
 		print(string.format("Error: Could not load '%s'", filename))
 	else
-		local cnt = table.getsize(data)
-		print(string.format("Loaded %d stages from '%s'", cnt, filename))
+		local numStages = tablelength(data)
+		print(string.format("Loaded %d stages from '%s'", numStages, filename))
 		stageData = data
 	end
 end
 
 
 function saveStagesToFile(filename)
-	local cnt = table.getsize(stageData)
-	print(string.format("Saving %d stages to '%s'", cnt, filename))
-	playdate.datastore.write(stageData, filename)
+	if stageData == nil then
+		print("Error: No stage data to save")
+	else
+		local numStages = getNumStages()
+		print(string.format("Saving %d stages to '%s'", numStages, filename))
+		playdate.datastore.write(stageData, filename, false)
+	end
 end
 
 
@@ -184,7 +204,12 @@ end
 
 
 function setStageData(i, data)
-	stageData[i] = data
+	print("Saving stage to index ", i)
+	if data ~= nil then
+		stageData[i] = data
+	else
+		print(string.format("Error: Data cannot be set as it is nil"))
+	end
 end
 
 
@@ -223,7 +248,6 @@ end
 
 
 function jitter:getScaled(scale)
-	-- print(self.nextSampleIdx)
 	local i = self.nextSampleIdx * 2
 	if self.nextSampleIdx == self.numSamples then
 		self.nextSampleIdx = 1
@@ -231,6 +255,11 @@ function jitter:getScaled(scale)
 		self.nextSampleIdx += 1
 	end
 	return self.values[i-1] * scale, self.values[i] * scale
+end
+
+
+function jitter:randomizeNextSampleIndex()
+	self.nextSampleIdx = math.random(1, self.numSamples)
 end
 
 jitter:init((STAGE_WIDTH+1) * (STAGE_HEIGHT+1))
@@ -256,7 +285,8 @@ end
 
 
 function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, invertColors)
-	jitter.nextSampleIdx = 1
+	-- jitter.nextSampleIdx = 1
+	local sampleIndex = jitter.nextSampleIdx
 	gfx.setLineWidth(lineWidth * 4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
 
@@ -279,7 +309,7 @@ function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, inv
 		x += letterSize + letterSpacing
 		drawLineLoop(LOGO_E, x, y, letterScale, -letterScale, jitterScale)
 
-		jitter.nextSampleIdx = 1
+		jitter.nextSampleIdx = sampleIndex
 		gfx.setColor(fgcolor)
 		gfx.setLineWidth(lineWidth)
 		x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
@@ -287,10 +317,6 @@ function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, inv
 end
 
 
--- fade - 0 black - 1 white
--- text animation
--- jitter animation
--- logo animation
 function drawTitleScreen(image, jitterScale)
 	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
@@ -319,7 +345,6 @@ function drawTitleScreen(image, jitterScale)
 end
 
 
-
 -------------------------------------------------------------------------------
 -- GAME -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -327,7 +352,7 @@ local game = {}
 -- state machine for areas of the game
 game.currentState = STATE_STAGE_PLAY
 game.timeInState = 0
-game.transitionDuration = 1000
+game.transitionDuration = 500
 game.transitionEasingType = playdate.easingFunctions.inOutQuad
 game.transitionNextState = -1 -- if a transition has ended and this is > 0, it will change state and start another transition
 game.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 1.0, 0.0, game.transitionEasingType)
@@ -339,6 +364,8 @@ game.timeRemaining = 10
 function game:addTime(seconds)
 	self.timeRemaining += seconds
 end
+
+
 
 
 function game:inTransition()
@@ -629,6 +656,14 @@ function player:setVisible(isVisible)
 end
 
 
+function player:reset()
+	self.sprite:setVisible(true)
+	self.keys = 0
+	self.frame = 1
+	self.sprite:setImage(self.image1)
+end
+
+
 function player:moveTo(x, y)
 	if isValidIndex(x, y) then
 		self.x = x
@@ -641,7 +676,7 @@ end
 
 
 function player:update()
-	-- movement
+	-- movement (allows diagonals, but can't allow in game)
 	local mx, my = 0, 0
 	if playdate.buttonJustPressed(playdate.kButtonLeft)  then mx = -1 end
 	if playdate.buttonJustPressed(playdate.kButtonRight) then mx = 1 end
@@ -649,6 +684,10 @@ function player:update()
 	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
 	if not self.editModeEnabled then
 		if mx ~= 0 or my ~= 0 then
+			-- kind of rubbish way of disabling diagonal moves. Could check for valid direction and only move orthogonal
+			if mx ~= 0 and my ~= 0 then
+				my = 0
+			end
 			self:tryMove(mx, my)
 		end
 	else
@@ -664,10 +703,6 @@ function player:editModeUpdate(mx, my)
 
 	if playdate.buttonJustPressed(playdate.kButtonA) then
 		stage:editCell(self.x, self.y, self.editModeTypeId)
-	end
-
-	if playdate.buttonJustPressed(playdate.kButtonB) then
-		saveStage(currentStageId)
 	end
 
 	if playdate.getCrankChange() ~= 0 then
@@ -750,8 +785,7 @@ function player:tryMoveAndCollect(x, y)
 			SFX_GET_CLOCK:play()
 			return true
 		elseif typeId == TYPE_EXIT then
-			game.inProgress = false
-			SFX_STAGE_CLEAR:play()
+			game:endStage()
 			return true
 		end
 
@@ -770,13 +804,38 @@ end
 -- GAME UPDATE FUNCTIONS ------------------------------------------------------
 -------------------------------------------------------------------------------
 function game:handleStateEntry()
-		-- handle specific state functions
+	player:setVisible(false)
+
+	-- handle specific state functions
 	local state = self.currentState
-	if state == STATE_STAGE_PLAY then
-		player:setVisible(true)
+	if state == STATE_TITLE then
+		-- without this, the stage background will continue to be drawn for a short while
+		drawTitleScreen(stageImage, 0)
+	elseif state == STATE_STAGE_PLAY then
+		player:reset()
 		loadStage(currentStageId)
+		self.timeRemaining = stage.time
+		gfx.sprite.redrawBackground()
+	end
+end
+
+
+function game:endStage(failed)
+	if failed then
+		SFX_TIME_OVER:play()
 	else
-		player:setVisible(false)
+		SFX_STAGE_CLEAR:play()
+	end
+	game.inPlay = false
+
+	local numStages = getNumStages()
+	if failed or currentStageId + 1 > numStages then
+		stage:clear()
+		self:changeState(STATE_TITLE)
+		currentStageId = 1	
+	else
+		currentStageId += 1
+		self:changeState(STATE_STAGE_PLAY)
 	end
 end
 
@@ -822,6 +881,8 @@ function game:updateTitle()
 		else
 			gfx.sprite.redrawBackground()
 		end
+	else
+		jitter:randomizeNextSampleIndex()
 	end
 
 	-- start the game when A button pressed
@@ -837,9 +898,8 @@ function game:updateGame()
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 
 		if prevTime > 0 and self.timeRemaining == 0 then
-			SFX_TIME_OVER:play()
-			-- DO SOMETHING
-		elseif self.timeRemaining  then
+			game:endStage(true) -- failed: true
+		elseif self.timeRemaining then
 			if math.floor(prevTime) > math.floor(self.timeRemaining) then
 				SFX_TIME_TICK:play()
 			end
@@ -874,7 +934,7 @@ function playdate.update()
 	gfx.sprite.update()
 	playdate.timer.updateTimers()
 
-	-- -- seem to have issues if I do this before anything else...
+	-- seem to have issues if I do this before anything else...
 	-- local timeString = string.format("%.3f", game.timeRemaining)
 	-- local px,py = player.sprite:getPosition()
 	-- local currentDrawMode = gfx.getImageDrawMode()
@@ -886,7 +946,7 @@ end
 
 -- call with currentStageId to reload the current stage
 function loadStage(stageId)
-	local numStages = table.getsize(stageData)
+	local numStages = getNumStages()
 	if stageId > 0 and stageId <= numStages then
 		currentStageId = stageId
 		stage:setData(getStageData(stageId))
@@ -899,13 +959,21 @@ function loadStage(stageId)
 			player:moveTo(x, y)
 		end
 	else
-		print(string.format("Error: Stage with id '%d' does not exist", stageId))
+		-- create an empty stage in this case
+		if player.editModeEnabled then
+			stage:clear()
+			stage:drawToImage(stageImage)
+			player:moveTo(6, 3)
+			gfx.sprite.redrawBackground()
+		else
+			print(string.format("Error: Stage with id '%d' does not exist", stageId))
+		end
 	end
 end
 
 
 function saveStage(stageId)
-	local numStages = table.getsize(stageData)
+	local numStages = getNumStages()
 	if stageId > 0 and stageId <= numStages + 1 then	
 		local data = stage:getData()
 		setStageData(stageId, data)
@@ -941,8 +1009,14 @@ function initGame()
 		player:editModeUpdateType() -- make sure correct tool is set
 		player:updateSpriteImage()
 		if value then
+			if game.currentState ~= STATE_STAGE_PLAY then
+				local numStages = getNumStages()
+				currentStageId = numStages + 1
+				game:changeState(STATE_STAGE_PLAY)
+			end
+
 			local menuitem = menu:addMenuItem("Save Stage", function()
-				saveStage(currentStageId)
+				saveStage(getNumStages() + 1)
 			end)
 			local menuitem = menu:addMenuItem("Reload Stage", function()
 				loadStage(currentStageId)
