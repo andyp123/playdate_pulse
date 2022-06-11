@@ -121,9 +121,9 @@ local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 -- why the actual fuck is this not built in to lua?
 -- Playdate's table.getsize appears to not work for the stage data.
 function tablelength(T)
-  local count = 0
-  for _ in pairs(T) do count = count + 1 end
-  return count
+	local count = 0
+	for _ in pairs(T) do count = count + 1 end
+	return count
 end
 
 
