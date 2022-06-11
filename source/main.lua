@@ -60,6 +60,12 @@ local TYPE_EXIT <const> = 3
 local TYPE_DOOR <const> = 4
 local TYPE_KEY <const> = 5
 local TYPE_CLOCK <const> = 6
+local TYPE_ROTATE_LEFT <const> = 7
+local TYPE_ROTATE_RIGHT <const> = 8
+local TYPE_BLOCK <const> = 9
+local TYPE_BLOCK_OPEN <const> = 10
+local TYPE_SWITCH <const> = 11
+local TYPE_MAX <const> = 11
 
 -- logo characters (x, y positions exported from blender. each letter is 3x3)
 -- offset should be 8 + multiple of 8
@@ -606,7 +612,7 @@ function stage:updateActors(first, last)
 		local cellValue = cells[i]
 		local sprite = actors[i]
 
-		if cellValue > TYPE_SOLID and cellValue <= TYPE_CLOCK then
+		if cellValue > TYPE_SOLID and cellValue <= TYPE_MAX then
 			if sprite ~= nil then
 				sprite:setImage(spriteTable:getImage(cellValue))
 				sprite:add()
@@ -626,6 +632,20 @@ function stage:updateActors(first, last)
 end
 
 
+function stage:flipBlockState()
+	local cells = self.cells
+	for i = 1, STAGE_NUM_CELLS do
+		local cellValue = cells[i]
+		if cellValue == TYPE_BLOCK then
+			cells[i] = TYPE_BLOCK_OPEN
+			self:updateActors(i, i)
+		elseif cellValue == TYPE_BLOCK_OPEN then
+			cells[i] = TYPE_BLOCK
+			self:updateActors(i, i)
+		end
+	end
+end
+
 
 -------------------------------------------------------------------------------
 -- PLAYER ---------------------------------------------------------------------
@@ -634,12 +654,31 @@ local player = {}
 player.x = 1
 player.y = 1
 player.keys = 0
+player.inputRotation = 0 -- 0-3, corresponding to 0, 90, 180, 270
 player.frame = 1
 player.image1 = nil
 player.image2 = nil
 player.sprite = nil
 player.editModeEnabled = false
 player.editModeTypeId = TYPE_SOLID
+
+
+function player:getRotatedInput(mx, my)
+	local rx, ry = mx, my
+	if self.inputRotation == 1 then -- 90
+		rx = -my
+		ry = mx
+	elseif self.inputRotation == 2 then -- 180
+		rx = -mx
+		ry = -my
+	elseif self.inputRotation == 3 then -- 270
+		rx = my
+		ry = -mx
+	end
+
+	return rx, ry
+end
+
 
 function player:init()
 	self.image1 = spriteTable:getImage(13)
@@ -659,6 +698,7 @@ end
 function player:reset()
 	self.sprite:setVisible(true)
 	self.keys = 0
+	self.inputRotation = 0
 	self.frame = 1
 	self.sprite:setImage(self.image1)
 end
@@ -682,6 +722,7 @@ function player:update()
 	if playdate.buttonJustPressed(playdate.kButtonRight) then mx = 1 end
 	if playdate.buttonJustPressed(playdate.kButtonUp)    then my = -1 end
 	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
+	mx, my = self:getRotatedInput(mx, my)
 	if not self.editModeEnabled then
 		if mx ~= 0 or my ~= 0 then
 			-- kind of rubbish way of disabling diagonal moves. Could check for valid direction and only move orthogonal
@@ -722,7 +763,7 @@ end
 
 function player:editModeUpdateType()
 	local crankPos = playdate.getCrankPosition()
-	local segmentSize = 360 / TYPE_CLOCK
+	local segmentSize = 360 / TYPE_MAX
 	local adjustedPos = (crankPos + segmentSize * 0.5) % 360
 	local typeId = math.floor(adjustedPos / segmentSize) + 1
 	self.editModeTypeId = typeId
@@ -761,7 +802,7 @@ function player:tryMoveAndCollect(x, y)
 		local i = xy2i(x, y)
 		local typeId = stage.cells[i]
 
-		if typeId == TYPE_SOLID then
+		if typeId == TYPE_SOLID or typeId == TYPE_BLOCK then
 			SFX_MOVE_FAIL:play()
 			return false
 		elseif typeId == TYPE_DOOR then
@@ -784,6 +825,21 @@ function player:tryMoveAndCollect(x, y)
 			stage:editCell(x, y, TYPE_EMPTY)
 			SFX_GET_CLOCK:play()
 			return true
+		elseif typeId == TYPE_ROTATE_LEFT then
+			self.inputRotation = (self.inputRotation + 3) % 4
+			print("LEFT:", self.inputRotation)
+			stage:editCell(x, y, TYPE_EMPTY)
+			SFX_GET_CLOCK:play()
+			return true
+		elseif typeId == TYPE_ROTATE_RIGHT then
+			self.inputRotation = (self.inputRotation + 1) % 4
+			print("RIGHT:", self.inputRotation)
+			stage:editCell(x, y, TYPE_EMPTY)
+			SFX_GET_CLOCK:play()
+			return true
+		elseif typeId == TYPE_SWITCH then
+			stage:flipBlockState()
+			-- flip state of blocks to TYPE_BLOCK_OPEN and vice versa
 		elseif typeId == TYPE_EXIT then
 			game:endStage()
 			return true
@@ -898,7 +954,7 @@ function game:updateGame()
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 
 		if prevTime > 0 and self.timeRemaining == 0 then
-			game:endStage(true) -- failed: true
+			-- game:endStage(true) -- failed: true
 		elseif self.timeRemaining then
 			if math.floor(prevTime) > math.floor(self.timeRemaining) then
 				SFX_TIME_TICK:play()
@@ -963,7 +1019,7 @@ function loadStage(stageId)
 		if player.editModeEnabled then
 			stage:clear()
 			stage:drawToImage(stageImage)
-			player:moveTo(6, 3)
+			player:moveTo(3, 3)
 			gfx.sprite.redrawBackground()
 		else
 			print(string.format("Error: Stage with id '%d' does not exist", stageId))
