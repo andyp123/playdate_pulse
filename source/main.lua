@@ -1,10 +1,14 @@
+-- Playdate SDK
 import "CoreLibs/object"
 import "CoreLibs/graphics"
 import "CoreLibs/sprites"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
-import 'CoreLibs/animator'
-import 'CoreLibs/easing'
+import "CoreLibs/animator"
+import "CoreLibs/easing"
+
+-- Pulse modules
+import "jitterTable"
 
 -- TODO: (+ done, x cancelled)
 -- move input from player to main loop
@@ -43,6 +47,8 @@ local STAGE_NUM_CELLS <const> = STAGE_WIDTH * STAGE_HEIGHT
 local STAGE_CELLSIZE <const> = 32
 local STAGE_OFFSET <const> = 4
 local SPRITE_OFFSET <const> = 24
+
+local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
 
 -- state
 local STATE_TITLE <const> = 1
@@ -220,66 +226,15 @@ end
 
 
 
--------------------------------------------------------------------------------
--- JITTER ---------------------------------------------------------------------
--------------------------------------------------------------------------------
-local jitter = {}
-
-
--- generates random direction vector for each vertex of the grid
--- these will be used to offset or jitter the vertex positions
--- during a pulse animation every second
-function jitter:init(numSamples)
-	self.numSamples = numSamples
-	self.nextSampleIdx = 1
-	self.values = table.create(numSamples * 2, 0)
-	for i = 1, numSamples * 2 do
-		local angle = math.random() * math.pi * 2
-		local x, y = math.sin(angle), math.cos(angle)
-		self.values[2*i-1] = x
-		self.values[2*i] = y
-		-- print(string.format("%d| %.1f: (%.3f, %.3f)", i, angle * 360/(2*math.pi), x, y))
-	end
-end
-
-
-function jitter:getAt(i)
-	return self.values[2*i-1], self.values[2*i]
-end
-
-
-function jitter:getAtScaled(i, scale)
-	return self.values[2*i-1] * scale, self.values[2*i] * scale
-end
-
-
-function jitter:getScaled(scale)
-	local i = self.nextSampleIdx * 2
-	if self.nextSampleIdx == self.numSamples then
-		self.nextSampleIdx = 1
-	else
-		self.nextSampleIdx += 1
-	end
-	return self.values[i-1] * scale, self.values[i] * scale
-end
-
-
-function jitter:randomizeNextSampleIndex()
-	self.nextSampleIdx = math.random(1, self.numSamples)
-end
-
-jitter:init((STAGE_WIDTH+1) * (STAGE_HEIGHT+1))
-
-
 -- Logo drawing
 function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
-	local jx, jy = jitter:getScaled(jitterScale)
+	local jx, jy = jitter:get(jitterScale)
 	local cnt = table.getsize(lineData)
 	local p1x = x + jx + lineData[1] * xScale
 	local p1y = y + jy + lineData[2] * yScale
 	local sx, sy = p1x, p1y
 	for i=3, cnt-1, 2 do
-		jx, jy = jitter:getScaled(jitterScale)
+		jx, jy = jitter:get(jitterScale)
 		local p2x = x + jx + lineData[i] * xScale
 		local p2y = y + jy + lineData[i+1] * yScale
 		gfx.drawLine(p1x, p1y, p2x, p2y)
@@ -291,7 +246,6 @@ end
 
 
 function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, invertColors)
-	-- jitter.nextSampleIdx = 1
 	local sampleIndex = jitter.nextSampleIdx
 	gfx.setLineWidth(lineWidth * 4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
@@ -514,10 +468,10 @@ function stage:drawToImage(image, jitterScale)
 
 		-- jitter for each corner x and y
 		if jitterScale == nil then jitterScale = 0 end
-		local tlx, tly = jitter:getAtScaled(i, jitterScale)
-		local trx, try = jitter:getAtScaled(i+1, jitterScale)
-		local blx, bly = jitter:getAtScaled(i+STAGE_WIDTH, jitterScale)
-		local brx, bry = jitter:getAtScaled(i+STAGE_WIDTH+1, jitterScale)
+		local tlx, tly = jitter:getAt(i, jitterScale)
+		local trx, try = jitter:getAt(i+1, jitterScale)
+		local blx, bly = jitter:getAt(i+STAGE_WIDTH, jitterScale)
+		local brx, bry = jitter:getAt(i+STAGE_WIDTH+1, jitterScale)
 
 		if cells[i] == 1 then
 			tileTable:drawImage(1, xp, yp)
@@ -827,13 +781,11 @@ function player:tryMoveAndCollect(x, y)
 			return true
 		elseif typeId == TYPE_ROTATE_LEFT then
 			self.inputRotation = (self.inputRotation + 3) % 4
-			print("LEFT:", self.inputRotation)
 			stage:editCell(x, y, TYPE_EMPTY)
 			SFX_GET_CLOCK:play()
 			return true
 		elseif typeId == TYPE_ROTATE_RIGHT then
 			self.inputRotation = (self.inputRotation + 1) % 4
-			print("RIGHT:", self.inputRotation)
 			stage:editCell(x, y, TYPE_EMPTY)
 			SFX_GET_CLOCK:play()
 			return true
