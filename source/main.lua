@@ -33,6 +33,7 @@ import "jitterTable"
 -- - no way back (blocks previously occupied are filled)
 -- x randomised initial state controls
 -- polish
+-- - move various classes, functions etc. into separate files
 -- - more efficient duplication of stage data on save/load (don't create new tables)
 -- - move jittered edges to foreground and draw each frame?
 
