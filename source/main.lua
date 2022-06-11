@@ -954,7 +954,7 @@ function game:updateGame()
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 
 		if prevTime > 0 and self.timeRemaining == 0 then
-			-- game:endStage(true) -- failed: true
+			game:endStage(true) -- failed: true
 		elseif self.timeRemaining then
 			if math.floor(prevTime) > math.floor(self.timeRemaining) then
 				SFX_TIME_TICK:play()
@@ -1066,13 +1066,12 @@ function initGame()
 		player:updateSpriteImage()
 		if value then
 			if game.currentState ~= STATE_STAGE_PLAY then
-				local numStages = getNumStages()
-				currentStageId = numStages + 1
+				currentStageId = getNumStages() + 1
 				game:changeState(STATE_STAGE_PLAY)
 			end
 
 			local menuitem = menu:addMenuItem("Save Stage", function()
-				saveStage(getNumStages() + 1)
+				saveStage(currentStageId)
 			end)
 			local menuitem = menu:addMenuItem("Reload Stage", function()
 				loadStage(currentStageId)
