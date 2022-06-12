@@ -7,16 +7,13 @@ import "CoreLibs/crank"
 import "CoreLibs/animator"
 import "CoreLibs/easing"
 
--- Pulse modules
+-- Pulse
+import "global"
 import "jitterTable"
+import "stage"
+import "player"
 
 -- TODO: (+ done, x cancelled)
--- move input from player to main loop
--- move edit state from player to game
--- input to player only during game and editor states
-
--- + title screen with jittering letter logo
--- + fade transitions between states
 -- game over state
 -- game clear state
 -- level select menu
@@ -31,25 +28,23 @@ import "jitterTable"
 -- - all corners mode (touch every tile)
 -- - collector (get every special item)
 -- - no way back (blocks previously occupied are filled)
--- x randomised initial state controls
--- polish
--- - move various classes, functions etc. into separate files
--- - more efficient duplication of stage data on save/load (don't create new tables)
--- - move jittered edges to foreground and draw each frame?
+-- move input from player to main loop
+-- move edit state from player to game
+-- input to player only during game and editor states
+
 
 local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
 
--- global constants
-local STAGE_WIDTH <const> = 12
-local STAGE_HEIGHT <const> = 7
-local STAGE_NUM_CELLS <const> = STAGE_WIDTH * STAGE_HEIGHT
--- size/spacing of grid cells in pixels, offset of stage
-local STAGE_CELLSIZE <const> = 32
-local STAGE_OFFSET <const> = 4
-local SPRITE_OFFSET <const> = 24
+-- constants from stage
+local STAGE_WIDTH <const> = stage.kWidth
+local STAGE_HEIGHT <const> = stage.kHeight
+local STAGE_NUM_CELLS <const> = stage.kNumCells
+local STAGE_CELLSIZE <const> = stage.kCellSize
+local SCREEN_OFFSET <const> = stage.kScreenOffset
+local SPRITE_OFFSET <const> = stage.kSpriteOffset
 
-local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
+local cellTypes <const> = stage.cellTypes
 
 -- state
 local STATE_TITLE <const> = 1
@@ -59,20 +54,6 @@ local STATE_STAGE_CLEAR <const> = 4
 local STATE_STAGE_FAIL <const> = 5
 local STATE_GAME_CLEAR <const> = 6
 
--- tools / sprites
-local TYPE_EMPTY <const> = 0
-local TYPE_SOLID <const> = 1
-local TYPE_START <const> = 2
-local TYPE_EXIT <const> = 3
-local TYPE_DOOR <const> = 4
-local TYPE_KEY <const> = 5
-local TYPE_CLOCK <const> = 6
-local TYPE_ROTATE_LEFT <const> = 7
-local TYPE_ROTATE_RIGHT <const> = 8
-local TYPE_BLOCK <const> = 9
-local TYPE_BLOCK_OPEN <const> = 10
-local TYPE_SWITCH <const> = 11
-local TYPE_MAX <const> = 11
 
 -- logo characters (x, y positions exported from blender. each letter is 3x3)
 -- offset should be 8 + multiple of 8
@@ -86,16 +67,19 @@ LOGO_S = { 1, -3, 2, -3, 2.38, -2.92, 2.71, -2.71, 2.92, -2.38, 3, -2, 2.92, -1.
 LOGO_E = { 0, 0, 1, 0, 2, 0, 3, 0, 3, -1, 2, -1, 1, -1, 2, -1, 2, -2, 1, -2, 2, -2, 3, -2, 3, -3, 2, -3, 1, -3, 0, -3, 0, -2, 0, -1 }
 
 -- images
-local tileTable = gfx.imagetable.new("images/tiles")
-local spriteTable = gfx.imagetable.new("images/sprites")
-local transition1Table = gfx.imagetable.new("images/transition1")
-local stageImage = gfx.image.new(400, 240, gfx.kColorClear)
+local tileImageTable = gfx.imagetable.new("images/tiles")
+local spriteImageTable = gfx.imagetable.new("images/sprites")
+local playerImageTable = gfx.imagetable.new("images/player")
+local bgImage = gfx.image.new(400, 240, gfx.kColorClear)
+
+local transitionImageTable = gfx.imagetable.new("images/transition1")
 local transitionImage = gfx.image.new(400, 240)
 local transitionSprite = gfx.sprite.new(transitionImage)
 transitionSprite:add()
 transitionSprite:setZIndex(32100)
 transitionSprite:moveTo(200,120)
 transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
+
 local font = gfx.font.new("fonts/Roobert-20-Medium")
 gfx.setFont(font)
 
@@ -114,117 +98,22 @@ SFX_CONGRATULATIONS = snd.sampleplayer.new("sounds/congratulations")
 local gameStageFileName <const> = "data/gamestages"
 local userStageFileName <const> = "data/userstages"
 
--- all loaded stagess will be stored in this table
-local stageData = {}
-local currentStageId = 1
+local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
+
+-- stage
+local currentStage = stage.new()
+local currentStageIndex = 1
+stage.setResources(tileImageTable, spriteImageTable, jitter)
+stage.drawTarget = bgImage
+
+-- player
+player.setResources(currentStage, playerImageTable, spriteImageTable)
+local player1 = player.new()
+
 
 -- time
 local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
-
-
--- helper functions
--- https://stackoverflow.com/questions/2705793/how-to-get-number-of-entries-in-a-lua-table
--- why the actual fuck is this not built in to lua?
--- Playdate's table.getsize appears to not work for the stage data.
-function tablelength(T)
-	local count = 0
-	for _ in pairs(T) do count = count + 1 end
-	return count
-end
-
-
-function i2xy(i, w)
-	w = w or STAGE_WIDTH
-	i -= 1
-	local x = i % w
-	local y = math.floor((i - x) / w)
-	return x + 1, y + 1
-end
-
-
-function i2xy0(i, w)
-	w = w or STAGE_WIDTH
-	i -= 1
-	local x = i % w
-	local y = math.floor((i - x) / w)
-	return x, y
-end
-
-
-function xy2i(x, y)
-	local i = (y - 1) * STAGE_WIDTH + x
-	return i
-end
-
-
-function isValidIndex(x, y)
-	if x < 1 or x > STAGE_WIDTH or y < 1 or y > STAGE_HEIGHT then
-		return false
-	end
-	return true
-end
-
-
-function clamp(value, min, max)
-	if value < min then return min end
-	if max ~= nil and value > max then return max end
-	return value
-end
-
-
-function getNumStages()
-	if stageData ~= nil then return tablelength(stageData) end
-	return 0
-end
-
-
--- saving and loadings stage data
-function loadStagesFromFile(filename)
-	local data = playdate.datastore.read(filename)
-
-	if data == nil then
-		print(string.format("Error: Could not load '%s'", filename))
-	else
-		local numStages = tablelength(data)
-		print(string.format("Loaded %d stages from '%s'", numStages, filename))
-		stageData = data
-	end
-end
-
-
-function saveStagesToFile(filename)
-	if stageData == nil then
-		print("Error: No stage data to save")
-	else
-		local numStages = getNumStages()
-		print(string.format("Saving %d stages to '%s'", numStages, filename))
-		playdate.datastore.write(stageData, filename, false)
-	end
-end
-
-
--- getting and setting stage data
--- note that using stage:setData and stage:getData will
--- already deep copy the data, so no need to do so here
-function getStageData(i)
-	local data = stageData[i]
-	if data == nil then
-		print(string.format("Error: No stage data at index '%d'", i))
-	end
-	return data
-end
-
-
-function setStageData(i, data)
-	print("Saving stage to index ", i)
-	if data ~= nil then
-		stageData[i] = data
-	else
-		print(string.format("Error: Data cannot be set as it is nil"))
-	end
-end
-
 
 
 -- Logo drawing
@@ -283,17 +172,17 @@ function drawTitleScreen(image, jitterScale)
 	gfx.lockFocus(image)
 
 	local width, height = STAGE_WIDTH, STAGE_HEIGHT
-	local size, offset = STAGE_CELLSIZE, STAGE_OFFSET
+	local size, offset = STAGE_CELLSIZE, SCREEN_OFFSET
 
 	gfx.setColor(gfx.kColorWhite)
 	gfx.setLineWidth(4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
 
 	for i = 1, STAGE_NUM_CELLS do
-		local x, y = i2xy0(i)
+		local x, y = i2xy0(i, STAGE_WIDTH)
 		local xp = x * size + offset
 		local yp = y * size + offset
-		tileTable:drawImage(1, xp, yp)
+		tileImageTable:drawImage(1, xp, yp)
 	end
 
 	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
@@ -325,8 +214,6 @@ game.timeRemaining = 10
 function game:addTime(seconds)
 	self.timeRemaining += seconds
 end
-
-
 
 
 function game:inTransition()
@@ -390,7 +277,7 @@ function game:drawTransition(drawMode)
 	local t = self.stateTransitionAnimator:currentValue()
 	local frameId = clamp(math.floor(t * 9), 1, 8)
 	-- print(t, frameId)
-	local frameImage = transition1Table:getImage(frameId)
+	local frameImage = transitionImageTable:getImage(frameId)
 	local tileSize = 32
 	local width = math.ceil(400 / tileSize) -- fill whole screen (400x240)
 	local cnt = width * math.ceil(240 / tileSize)
@@ -408,422 +295,22 @@ end
 
 
 
--------------------------------------------------------------------------------
--- STAGE ----------------------------------------------------------------------
--------------------------------------------------------------------------------
-local stage = {}
-stage.time = 10
-stage.cells = table.create(STAGE_NUM_CELLS, 0)
-stage.actors = {}
-
-
--- need to run this function on startup to initialize data
-function stage:clear()
-	self.time = 10
-	for i = 1, STAGE_NUM_CELLS do
-		self.cells[i] = 1
-	end
-	self:updateActors()
-end
-
-
-function stage:setData(data)
-	if data ~= nil then
-		self.time = data.time
-		for i = 1, STAGE_NUM_CELLS do
-			self.cells[i] = data.cells[i]
-		end
-		self:updateActors()
-	end
-end
-
-
-function stage:getData()
-	local data = {}
-	data.time = self.time
-	data.cells = table.create(STAGE_NUM_CELLS, 0)
-	for i = 1, STAGE_NUM_CELLS do
-		data.cells[i] = self.cells[i]
-	end
-	return data
-end
-
-
-function stage:drawToImage(image, jitterScale)
-	image:clear(gfx.kColorBlack)
-	gfx.lockFocus(image)
-
-	local cells = self.cells
-	local width, height = STAGE_WIDTH, STAGE_HEIGHT
-	local size, offset = STAGE_CELLSIZE, STAGE_OFFSET
-
-	gfx.setColor(gfx.kColorWhite)
-	gfx.setLineWidth(4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleSquare) --gfx.kLineCapStyleRound)
-
-	for i = 1, STAGE_NUM_CELLS do
-		local y = math.floor((i-1) / STAGE_WIDTH)
-		local x = i - (STAGE_WIDTH * y) - 1
-		local xp = x * size + offset
-		local yp = y * size + offset
-
-		-- jitter for each corner x and y
-		if jitterScale == nil then jitterScale = 0 end
-		local tlx, tly = jitter:getAt(i, jitterScale)
-		local trx, try = jitter:getAt(i+1, jitterScale)
-		local blx, bly = jitter:getAt(i+STAGE_WIDTH, jitterScale)
-		local brx, bry = jitter:getAt(i+STAGE_WIDTH+1, jitterScale)
-
-		if cells[i] == 1 then
-			tileTable:drawImage(1, xp, yp)
-		else
-			-- calculate the tile edges
-			-- t, r, b, l order
-			xp += 4
-			yp += 4
-			if y == 0 or cells[i-width] == 1 then
-				-- top
-				gfx.drawLine(xp+tlx, yp+tly, xp+trx + size, yp+try)
-			end
-			if x == width - 1 or cells[i+1] == 1 then
-				-- right
-				gfx.drawLine(xp+trx + size, yp+try, xp+brx + size, yp+bry + size)
-			end
-			if y == height - 1 or cells[i+width] == 1 then
-				-- bottom
-				gfx.drawLine(xp+blx, yp+bly + size, xp+brx + size, yp+bry + size)
-			end
-			if x == 0 or cells[i-1] == 1 then
-				-- left
-				gfx.drawLine(xp+tlx, yp+tly, xp+blx, yp+bly + size)
-			end
-		end
-	end
-
-	gfx.unlockFocus()
-end
-
-
-function stage:findCellOfType(typeId, start)
-	start = start or 1
-	if start > 0 and start <= STAGE_NUM_CELLS then
-		local cells = self.cells
-		for i = start, STAGE_NUM_CELLS do
-			if cells[i] == typeId then
-				return i
-			end
-		end
-	end
-	return 0
-end
-
-
-function stage:editCell(x, y, typeId)
-	local i = xy2i(x, y)
-	local cells = self.cells
-	local prevId = cells[i]
-
-
-	-- print(string.format("%d: %d, %d (%d > %d)", i, x, y, prevId, typeId))
-
-	-- does the edit modify the stage cells?
-	if typeId == TYPE_SOLID or prevId == TYPE_SOLID then
-		if typeId == TYPE_SOLID then
-			if prevId ~= TYPE_EMPTY then
-				cells[i] = TYPE_EMPTY
-			else
-				cells[i] = TYPE_SOLID
-			end
-		else -- place item on solid cell
-			cells[i] = typeId
-		end
-
-		self:drawToImage(stageImage)
-		xpos = (x - 1) * STAGE_CELLSIZE
-		ypos = (y - 1) * STAGE_CELLSIZE
-		local size = STAGE_CELLSIZE + STAGE_OFFSET * 4
-		gfx.sprite.addDirtyRect(xpos, ypos, size, size)
-	else
-		if typeId == prevId then
-			cells[i] = TYPE_EMPTY
-		else
-			cells[i] = typeId
-		end
-	end
-
-	self:updateActors(i, i)
-end
-
-
--- populate/update actors based on cell values
-function stage:updateActors(first, last)
-	-- enables single cell update
-	if first == nil then first = 1 end
-	if last == nil then last = STAGE_NUM_CELLS end
-
-	local cells = self.cells
-	local actors = self.actors
-	for i = first, last do
-		local cellValue = cells[i]
-		local sprite = actors[i]
-
-		if cellValue > TYPE_SOLID and cellValue <= TYPE_MAX then
-			if sprite ~= nil then
-				sprite:setImage(spriteTable:getImage(cellValue))
-				sprite:add()
-			else
-				local xpos, ypos = i2xy(i)
-				xpos = (xpos - 1) * STAGE_CELLSIZE + SPRITE_OFFSET
-				ypos = (ypos - 1) * STAGE_CELLSIZE + SPRITE_OFFSET
-				sprite = gfx.sprite.new(spriteTable:getImage(cellValue))
-				sprite:moveTo(xpos, ypos)
-				sprite:add()
-				actors[i] = sprite
-			end
-		elseif sprite ~= nil then
-			sprite:remove()
-		end
-	end
-end
-
-
-function stage:flipBlockState()
-	local cells = self.cells
-	for i = 1, STAGE_NUM_CELLS do
-		local cellValue = cells[i]
-		if cellValue == TYPE_BLOCK then
-			cells[i] = TYPE_BLOCK_OPEN
-			self:updateActors(i, i)
-		elseif cellValue == TYPE_BLOCK_OPEN then
-			cells[i] = TYPE_BLOCK
-			self:updateActors(i, i)
-		end
-	end
-end
-
-
--------------------------------------------------------------------------------
--- PLAYER ---------------------------------------------------------------------
--------------------------------------------------------------------------------
-local player = {}
-player.x = 1
-player.y = 1
-player.keys = 0
-player.inputRotation = 0 -- 0-3, corresponding to 0, 90, 180, 270
-player.frame = 1
-player.image1 = nil
-player.image2 = nil
-player.sprite = nil
-player.editModeEnabled = false
-player.editModeTypeId = TYPE_SOLID
-
-
-function player:getRotatedInput(mx, my)
-	local rx, ry = mx, my
-	if self.inputRotation == 1 then -- 90
-		rx = -my
-		ry = mx
-	elseif self.inputRotation == 2 then -- 180
-		rx = -mx
-		ry = -my
-	elseif self.inputRotation == 3 then -- 270
-		rx = my
-		ry = -mx
-	end
-
-	return rx, ry
-end
-
-
-function player:init()
-	self.image1 = spriteTable:getImage(13)
-	self.image2 = spriteTable:getImage(14)
-	self.sprite = gfx.sprite.new(self.image1)
-	self.sprite:moveTo(SPRITE_OFFSET, SPRITE_OFFSET)
-	self.sprite:add()
-	self.sprite:setZIndex(32000)
-end
-
-
-function player:setVisible(isVisible)
-	self.sprite:setVisible(isVisible)
-end
-
-
-function player:reset()
-	self.sprite:setVisible(true)
-	self.keys = 0
-	self.inputRotation = 0
-	self.frame = 1
-	self.sprite:setImage(self.image1)
-end
-
-
-function player:moveTo(x, y)
-	if isValidIndex(x, y) then
-		self.x = x
-		self.y = y
-		local posx = (x - 1) * STAGE_CELLSIZE + SPRITE_OFFSET
-		local posy = (y - 1) * STAGE_CELLSIZE + SPRITE_OFFSET
-		self.sprite:moveTo(posx, posy)
-	end
-end
-
-
-function player:update()
-	-- movement (allows diagonals, but can't allow in game)
-	local mx, my = 0, 0
-	if playdate.buttonJustPressed(playdate.kButtonLeft)  then mx = -1 end
-	if playdate.buttonJustPressed(playdate.kButtonRight) then mx = 1 end
-	if playdate.buttonJustPressed(playdate.kButtonUp)    then my = -1 end
-	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
-	mx, my = self:getRotatedInput(mx, my)
-	if not self.editModeEnabled then
-		if mx ~= 0 or my ~= 0 then
-			-- kind of rubbish way of disabling diagonal moves. Could check for valid direction and only move orthogonal
-			if mx ~= 0 and my ~= 0 then
-				my = 0
-			end
-			self:tryMove(mx, my)
-		end
-	else
-		self:editModeUpdate(mx, my)
-	end
-end
-
-
-function player:editModeUpdate(mx, my)
-	if mx ~= 0 or my ~= 0 then
-		self:editModeTryMove(mx, my)
-	end
-
-	if playdate.buttonJustPressed(playdate.kButtonA) then
-		stage:editCell(self.x, self.y, self.editModeTypeId)
-	end
-
-	if playdate.getCrankChange() ~= 0 then
-		self:editModeUpdateType()
-	end
-end
-
-
-function player:editModeTryMove(mx, my)
-	if isValidIndex(self.x + mx, self.y + my) then
-		self.x += mx
-		self.y += my
-		self.sprite:moveBy(mx * STAGE_CELLSIZE, my * STAGE_CELLSIZE)
-	end
-end
-
-
-function player:editModeUpdateType()
-	local crankPos = playdate.getCrankPosition()
-	local segmentSize = 360 / TYPE_MAX
-	local adjustedPos = (crankPos + segmentSize * 0.5) % 360
-	local typeId = math.floor(adjustedPos / segmentSize) + 1
-	self.editModeTypeId = typeId
-	if self.editModeEnabled then self:updateSpriteImage() end
-end
-
-
-function player:updateSpriteImage()
-	if self.editModeEnabled then
-		self.sprite:setImage(spriteTable:getImage(self.editModeTypeId))
-	else
-		if self.keys > 0 then
-			self.sprite:setImage(spriteTable:getImage(TYPE_KEY))
-		else
-			self.frame = math.abs(self.frame - 1)
-			if self.frame == 1 then self.sprite:setImage(self.image1)
-			else self.sprite:setImage(self.image2) end
-		end
-	end
-end
-
-
-function player:tryMove(mx, my)
-	local x, y = self.x + mx, self.y + my
-	if self:tryMoveAndCollect(x, y) then
-		self.x = x
-		self.y = y
-		self.sprite:moveBy(mx * STAGE_CELLSIZE, my * STAGE_CELLSIZE)
-		self:updateSpriteImage()
-	end
-end
-
-
-function player:tryMoveAndCollect(x, y)
-	if isValidIndex(x, y) then
-		local i = xy2i(x, y)
-		local typeId = stage.cells[i]
-
-		if typeId == TYPE_SOLID or typeId == TYPE_BLOCK then
-			SFX_MOVE_FAIL:play()
-			return false
-		elseif typeId == TYPE_DOOR then
-			if self.keys > 0 then
-				self.keys -= 1
-				stage:editCell(x, y, TYPE_EMPTY)
-				SFX_USE_KEY:play()
-				return true
-			else
-				SFX_MOVE_FAIL:play()
-				return false
-			end
-		elseif typeId == TYPE_KEY then
-			self.keys += 1
-			stage:editCell(x, y, TYPE_EMPTY)
-			SFX_GET_KEY:play()
-			return true
-		elseif typeId == TYPE_CLOCK then
-			game:addTime(2)
-			stage:editCell(x, y, TYPE_EMPTY)
-			SFX_GET_CLOCK:play()
-			return true
-		elseif typeId == TYPE_ROTATE_LEFT then
-			self.inputRotation = (self.inputRotation + 3) % 4
-			stage:editCell(x, y, TYPE_EMPTY)
-			SFX_GET_CLOCK:play()
-			return true
-		elseif typeId == TYPE_ROTATE_RIGHT then
-			self.inputRotation = (self.inputRotation + 1) % 4
-			stage:editCell(x, y, TYPE_EMPTY)
-			SFX_GET_CLOCK:play()
-			return true
-		elseif typeId == TYPE_SWITCH then
-			stage:flipBlockState()
-			-- flip state of blocks to TYPE_BLOCK_OPEN and vice versa
-		elseif typeId == TYPE_EXIT then
-			game:endStage()
-			return true
-		end
-
-		-- empty or undefined
-		SFX_MOVE:play()
-		return true
-	end
-	
-	SFX_MOVE_FAIL:play()
-	return false
-end
-
-
 
 -------------------------------------------------------------------------------
 -- GAME UPDATE FUNCTIONS ------------------------------------------------------
 -------------------------------------------------------------------------------
 function game:handleStateEntry()
-	player:setVisible(false)
+	player1:setVisible(false)
 
 	-- handle specific state functions
 	local state = self.currentState
 	if state == STATE_TITLE then
 		-- without this, the stage background will continue to be drawn for a short while
-		drawTitleScreen(stageImage, 0)
+		drawTitleScreen(bgImage, 0)
 	elseif state == STATE_STAGE_PLAY then
-		player:reset()
-		loadStage(currentStageId)
-		self.timeRemaining = stage.time
+		player1:reset()
+		loadStage(currentStageIndex)
+		self.timeRemaining = currentStage.time
 		gfx.sprite.redrawBackground()
 	end
 end
@@ -837,13 +324,13 @@ function game:endStage(failed)
 	end
 	game.inPlay = false
 
-	local numStages = getNumStages()
-	if failed or currentStageId + 1 > numStages then
-		stage:clear()
+	local numStages = stage.getNumStages()
+	if failed or currentStageIndex + 1 > numStages then
+		currentStage:clear()
 		self:changeState(STATE_TITLE)
-		currentStageId = 1	
+		currentStageIndex = 1	
 	else
-		currentStageId += 1
+		currentStageIndex += 1
 		self:changeState(STATE_STAGE_PLAY)
 	end
 end
@@ -858,7 +345,7 @@ function game:update()
 	elseif state == STATE_STAGE_WAIT then
 		-- play stage intro
 	elseif state == STATE_STAGE_PLAY then
-		if not player.editModeEnabled then
+		if not player1.editModeEnabled then
 			self:updateGame()
 		else
 			self:updateEditMode()
@@ -883,7 +370,7 @@ function game:updateTitle()
 	local tlim = 0.5
 	jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
 	if t >= tlim then
-		drawTitleScreen(stageImage, jitterScale)
+		drawTitleScreen(bgImage, jitterScale)
 		-- only redraw the whole screen after transition
 		if game.timeInState > deltaTimeSeconds then
 			gfx.sprite.addDirtyRect(0,0,400,100)
@@ -917,17 +404,17 @@ function game:updateGame()
 			local tlim = 0.5
 			jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
 			if t >= tlim then
-				stage:drawToImage(stageImage, jitterScale)
+				currentStage:drawToImage(jitterScale)
 				gfx.sprite.redrawBackground()
 			end
 		end
 
-		player:update()
+		player1:update()
 	end
 end
 
 function game:updateEditMode()
-	player:update()
+	player1:update()
 end
 
 
@@ -945,7 +432,7 @@ function playdate.update()
 
 	-- seem to have issues if I do this before anything else...
 	-- local timeString = string.format("%.3f", game.timeRemaining)
-	-- local px,py = player.sprite:getPosition()
+	-- local px,py = player1.sprite:getPosition()
 	-- local currentDrawMode = gfx.getImageDrawMode()
 	-- gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	-- gfx.drawText(timeString, px+16, py-8)
@@ -953,60 +440,46 @@ function playdate.update()
 end
 
 
--- call with currentStageId to reload the current stage
+-- call with currentStageIndex to reload the current stage
 function loadStage(stageId)
-	local numStages = getNumStages()
-	if stageId > 0 and stageId <= numStages then
-		currentStageId = stageId
-		stage:setData(getStageData(stageId))
-		stage:drawToImage(stageImage)
+	local numStages = stage.getNumStages()
+	if stageId >= 1 and stageId <= numStages then
+		currentStageIndex = stageId
+		currentStage:loadFromStageData(stageId)
+		currentStage:drawToImage()
 		gfx.sprite.redrawBackground()
 
-		local i = stage:findCellOfType(TYPE_START)
+		local i = currentStage:findCellOfType(cellTypes.START)
 		if i > 0 then
-			local x, y = i2xy(i)
-			player:moveTo(x, y)
+			local x, y = i2xy(i, STAGE_WIDTH)
+			player1:moveTo(x, y)
 		end
+	elseif player1.editModeEnabled then
+		currentStage:clear()
+		currentStage:drawToImage()
+		player1:moveTo(3, 3)
+		gfx.sprite.redrawBackground()
 	else
-		-- create an empty stage in this case
-		if player.editModeEnabled then
-			stage:clear()
-			stage:drawToImage(stageImage)
-			player:moveTo(3, 3)
-			gfx.sprite.redrawBackground()
-		else
-			print(string.format("Error: Stage with id '%d' does not exist", stageId))
-		end
-	end
-end
-
-
-function saveStage(stageId)
-	local numStages = getNumStages()
-	if stageId > 0 and stageId <= numStages + 1 then	
-		local data = stage:getData()
-		setStageData(stageId, data)
-		saveStagesToFile(gameStageFileName)
-	else
-		print(string.format("Error: Currently %d stages, can't save to id '%d'", stageId, numStages))
+		print(string.format("Error: Stage with id '%d' does not exist", stageId))
 	end
 end
 
 
 function initGame()
 	-- initialize stage data and load a stage
-	loadStagesFromFile(gameStageFileName)
-	stage:clear() -- need to fill with some valid data
-	stageImage:clear(gfx.kColorBlack)
-	player:init() -- make sure sprite initialized!
-	player:setVisible(false)
+	stage.loadStagesFromFile(gameStageFileName)
+	bgImage:clear(gfx.kColorBlack)
+
+	player1:setVisible(false)
+	player.getTimeCallback = function(t) game:addTime(t) end
+	player.reachExitCallback = function() game:endStage() end
 
 	game:changeState(STATE_TITLE, true)
 
 	gfx.sprite.setBackgroundDrawingCallback(
 		function(x, y, width, height)
 			gfx.setClipRect(x, y, width, height)
-			stageImage:draw(0, 0)
+			bgImage:draw(0, 0)
 			gfx.clearClipRect()
 		end
 	)
@@ -1014,20 +487,20 @@ function initGame()
 	-- add menu option
 	local menu = playdate.getSystemMenu()
 	local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
-		player.editModeEnabled = not player.editModeEnabled
-		player:editModeUpdateType() -- make sure correct tool is set
-		player:updateSpriteImage()
+		player1.editModeEnabled = not player1.editModeEnabled
+		player1:editModeUpdateType() -- make sure correct tool is set
+		player1:updateSpriteImage()
 		if value then
 			if game.currentState ~= STATE_STAGE_PLAY then
-				currentStageId = getNumStages() + 1
+				currentStageIndex = stage.getNumStages() + 1
 				game:changeState(STATE_STAGE_PLAY)
 			end
 
 			local menuitem = menu:addMenuItem("Save Stage", function()
-				saveStage(currentStageId)
+				currentStage:saveToStageData(currentStageIndex)
 			end)
 			local menuitem = menu:addMenuItem("Reload Stage", function()
-				loadStage(currentStageId)
+				currentStage:loadFromStageData(currentStageIndex)
 			end)
 		end
 	end)

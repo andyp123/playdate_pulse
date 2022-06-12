@@ -1,6 +1,10 @@
+-- Playdate SDK
+import "CoreLibs/object"
 import "CoreLibs/graphics"
 import "CoreLibs/sprites"
 
+-- Pulse
+import "global"
 import "jitterTable"
 
 local gfx <const> = playdate.graphics
@@ -18,6 +22,9 @@ stage.kNumCells = stage.kWidth * stage.kHeight
 stage.kCellSize = 32
 stage.kScreenOffset = 4
 stage.kSpriteOffset = 24
+
+-- Default settings
+stage.kDefaultTime = 10
 
 -- Cell types correspond to sprite indices
 -- A table of values seems easier to work with than individual constants
@@ -37,13 +44,36 @@ stage.cellTypes = {
 	MAX = 11
 }
 
--- Image tables for drawing the stage and actors in it
-local tileImages = nil
-local actorImages = nil
+-- Stage data file names
+local gameStageFilename <const> = "data/gamestages"
+local userStageFilename <const> = "data/userstages"
 
-function stage.setImageTables(tileImageTable, spriteImageTable)
-	tileImages = tileImageTable
-	actorImages = spriteImageTable
+-- Table for stage data loaded from a file
+-- Data always copied to and from stage objects to avoid accidental modification
+stage.stageData = {}
+-- stage.stageDataCurrentIndex = 1
+
+
+-- Image tables for drawing the stage and actors in it
+stage.tileImages = nil
+stage.actorImages = nil
+
+stage.jitter = nil -- jitter table for drawing
+stage.drawTarget = nil -- 400x240 screen image
+
+
+function stage.setResources(tileImageTable, spriteImageTable, jitterTable)
+	stage.tileImages = tileImageTable
+	stage.actorImages = spriteImageTable
+	stage.jitter = jitterTable
+end
+
+
+function stage.isValidIndex(x, y)
+	if x < 1 or x > stage.kWidth or y < 1 or y > stage.kHeight then
+		return false
+	end
+	return true
 end
 
 
@@ -56,7 +86,7 @@ function stage.new()
 	local a = {
 		cells = cells,
 		actors = {},
-		time = 10
+		time = stage.kDefaultTime
 	}
 
 	setmetatable(a, stage)
@@ -64,11 +94,10 @@ function stage.new()
 end
 
 
--- need to run this function on startup to initialize data
 function stage:clear(cellValue)
 	cellValue = cellValue or 1
 
-	self.time = 10
+	self.time = self.kDefaultTime
 	for i = 1, self.kNumCells do
 		self.cells[i] = cellValue
 	end
@@ -76,31 +105,9 @@ function stage:clear(cellValue)
 end
 
 
-function stage:setData(data)
-	if data ~= nil then
-		self.time = data.time
-		for i = 1, self.kNumCells do
-			self.cells[i] = data.cells[i]
-		end
-		self:updateActors()
-	end
-end
-
-
-function stage:getData()
-	local data = {}
-	data.time = self.time
-	data.cells = table.create(self.kNumCells, 0)
-	for i = 1, self.kNumCells do
-		data.cells[i] = self.cells[i]
-	end
-	return data
-end
-
-
-function stage:drawToImage(image, jitterTable, jitterScale)
-	image:clear(gfx.kColorBlack)
-	gfx.lockFocus(image)
+function stage:drawToImage(jitterScale)
+	self.drawTarget:clear(gfx.kColorBlack)
+	gfx.lockFocus(self.drawTarget)
 
 	local cells = self.cells
 	local width, height = self.kWidth, self.kHeight
@@ -110,6 +117,10 @@ function stage:drawToImage(image, jitterTable, jitterScale)
 	gfx.setLineWidth(4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
 
+	local tileImages = self.tileImages
+	local jitter = self.jitter
+	if jitterScale == nil then jitterScale = 0 end
+
 	for i = 1, self.kNumCells do
 		local y = math.floor((i - 1) / width)
 		local x = i - (width * y) - 1
@@ -117,11 +128,10 @@ function stage:drawToImage(image, jitterTable, jitterScale)
 		local yp = y * size + offset
 
 		-- jitter for each corner x and y
-		if jitterScale == nil then jitterScale = 0 end
-		local tlx, tly = jitterTable:getAt(i, jitterScale)
-		local trx, try = jitterTable:getAt(i + 1, jitterScale)
-		local blx, bly = jitterTable:getAt(i + width, jitterScale)
-		local brx, bry = jitterTable:getAt(i + width + 1, jitterScale)
+		local tlx, tly = jitter:getAt(i, jitterScale)
+		local trx, try = jitter:getAt(i + 1, jitterScale)
+		local blx, bly = jitter:getAt(i + width, jitterScale)
+		local brx, bry = jitter:getAt(i + width + 1, jitterScale)
 
 		if cells[i] == 1 then
 			tileImages:drawImage(1, xp, yp)
@@ -130,20 +140,16 @@ function stage:drawToImage(image, jitterTable, jitterScale)
 			-- t, r, b, l order
 			xp += 4
 			yp += 4
-			if y == 0 or cells[i - width] == 1 then
-				-- top
+			if y == 0 or cells[i - width] == 1 then -- Top
 				gfx.drawLine(xp + tlx, yp + tly, xp + trx + size, yp + try)
 			end
-			if x == width - 1 or cells[i + 1] == 1 then
-				-- right
+			if x == width - 1 or cells[i + 1] == 1 then -- Right
 				gfx.drawLine(xp + trx + size, yp + try, xp + brx + size, yp + bry + size)
 			end
-			if y == height - 1 or cells[i + width] == 1 then
-				-- bottom
+			if y == height - 1 or cells[i + width] == 1 then -- Bottom
 				gfx.drawLine(xp + blx, yp + bly + size, xp + brx + size, yp + bry + size)
 			end
-			if x == 0 or cells[i - 1] == 1 then
-				-- left
+			if x == 0 or cells[i - 1] == 1 then -- Left
 				gfx.drawLine(xp + tlx, yp + tly, xp + blx, yp + bly + size)
 			end
 		end
@@ -153,6 +159,7 @@ function stage:drawToImage(image, jitterTable, jitterScale)
 end
 
 
+-- Returns the first instance of a cell of typeId
 function stage:findCellOfType(typeId, start)
 	start = start or 1
 	local cells = self.cells
@@ -165,7 +172,7 @@ end
 
 
 function stage:editCell(x, y, typeId)
-	local i = xy2i(x, y)
+	local i = xy2i(x, y, self.kWidth)
 	local cells = self.cells
 	local prevId = cells[i]
 	local EMPTY, SOLID = self.cellTypes.EMPTY, self.cellTypes.SOLID
@@ -184,7 +191,7 @@ function stage:editCell(x, y, typeId)
 			cells[i] = typeId
 		end
 
-		self:drawToImage(stageImage)
+		self:drawToImage()
 		xpos = (x - 1) * self.kCellSize
 		ypos = (y - 1) * self.kCellSize
 		local size = self.kCellSize + self.kScreenOffset * 4
@@ -210,6 +217,7 @@ function stage:updateActors(first, last)
 
 	local cells = self.cells
 	local actors = self.actors
+	local actorImages = self.actorImages
 	for i = first, last do
 		local cellValue = cells[i]
 		local sprite = actors[i]
@@ -219,7 +227,7 @@ function stage:updateActors(first, last)
 				sprite:setImage(actorImages:getImage(cellValue))
 				sprite:add()
 			else
-				local xpos, ypos = i2xy(i)
+				local xpos, ypos = i2xy(i, self.kWidth)
 				xpos = (xpos - 1) * self.kCellSize + self.kSpriteOffset
 				ypos = (ypos - 1) * self.kCellSize + self.kSpriteOffset
 				sprite = gfx.sprite.new(actorImages:getImage(cellValue))
@@ -249,3 +257,85 @@ function stage:swapCellTypes(typeA, typeB)
 		end
 	end
 end
+
+
+-- Loading and saving stage data
+function stage.getNumStages()
+	return tablelength(stage.stageData)
+end
+
+
+function stage.loadStagesFromFile(filename)
+	local data = playdate.datastore.read(filename)
+
+	if data == nil then
+		print(string.format("Error: Could not load '%s'", filename))
+	else
+		local numStages = tablelength(data)
+		print(string.format("Loaded %d stages from '%s'", numStages, filename))
+		stage.stageData = data
+	end
+end
+
+
+function stage.saveStagesToFile(filename)
+	if stage.stageData == nil then
+		print("Error: No stage data to save")
+	else
+		local numStages = stage.getNumStages()
+		print(string.format("Saving %d stages to '%s'", numStages, filename))
+		playdate.datastore.write(stage.stageData, filename, false)
+	end
+end
+
+
+-- Get and set functions do not link tables from stageData to avoid accidental modification
+function stage:setData(fromData)
+	if fromData and fromData.cells then
+		self.time = fromData.time or self.kDefaultTime
+		for i = 1, self.kNumCells do
+			self.cells[i] = fromData.cells[i]
+		end
+		self:updateActors()
+	end
+end
+
+
+-- when adding new stages
+function stage:getDataCopy()
+	local cells = table.create(stage.kNumCells)
+	for i = 1, self.kNumCells do
+		cells[i] = self.cells[i]
+	end
+
+	return {
+		time = self.time,
+		cells = cells
+	}
+end
+
+
+function stage:loadFromStageData(stageIndex)
+	local numStages = stage.getNumStages()
+	if stageIndex >= 1 and stageIndex <= numStages then
+		self:setData(stage.stageData[stageIndex])
+	else
+		print("Error: No stage data at index '%d'")
+	end
+end
+
+
+function stage:saveToStageData(stageIndex)
+	local numStages = stage.getNumStages()
+	stageIndex = stageIndex or numStages + 1
+	stageIndex = math.floor(stageIndex)
+
+	if stageIndex >= 1 and stageIndex <= numStages + 1 then
+		stage.stageData[stageIndex] = self:getDataCopy(stageIndex)
+		print(string.format("Writing to stageData at index '%d'", stageIndex))
+		stage.saveStagesToFile(gameStageFilename)
+	else
+		print(string.format("Error: Currently %d stages, can't save to id '%d'", stageIndex, numStages))
+	end
+end
+
