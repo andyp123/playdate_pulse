@@ -6,6 +6,7 @@ import "CoreLibs/sprites"
 -- Pulse
 import "global"
 import "stage"
+import "sound"
 
 
 player = {}
@@ -139,39 +140,39 @@ function player:tryMoveAndCollect(x, y)
 		local typeId = self.currentStage.cells[i]
 
 		if typeId == cellTypes.SOLID or typeId == cellTypes.BLOCK_CLOSED then
-			-- SFX_MOVE_FAIL:play()
+			sound.play("SFX_MOVE_FAIL")
 			return false
 		elseif typeId == cellTypes.DOOR then
 			if self.keys > 0 then
 				self.keys -= 1
 				self.currentStage:editCell(x, y, cellTypes.EMPTY)
-				-- SFX_USE_KEY:play()
+				sound.play("SFX_USE_KEY")
 				return true
 			else
-				-- SFX_MOVE_FAIL:play()
+				sound.play("SFX_MOVE_FAIL")
 				return false
 			end
 		elseif typeId == cellTypes.KEY then
 			self.keys += 1
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			-- SFX_GET_KEY:play()
+			sound.play("SFX_GET_KEY")
 			return true
 		elseif typeId == cellTypes.CLOCK then
 			if self.getTimeCallback ~= nil then
 				self.getTimeCallback(2)
 			end
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			-- SFX_GET_CLOCK:play()
+			sound.play("SFX_GET_CLOCK")
 			return true
 		elseif typeId == cellTypes.ROTATE_LEFT then
 			self.inputRotation = (self.inputRotation + 3) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			-- SFX_GET_CLOCK:play()
+			sound.play("SFX_GET_CLOCK")
 			return true
 		elseif typeId == cellTypes.ROTATE_RIGHT then
 			self.inputRotation = (self.inputRotation + 1) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			-- SFX_GET_CLOCK:play()
+			sound.play("SFX_GET_CLOCK")
 			return true
 		elseif typeId == cellTypes.SWITCH then
 			-- flip state of blocks to BLOCK_OPEN and vice versa
@@ -184,11 +185,11 @@ function player:tryMoveAndCollect(x, y)
 		end
 
 		-- empty or undefined
-		-- SFX_MOVE:play()
+		sound.play("SFX_MOVE")
 		return true
 	end
 	
-	-- SFX_MOVE_FAIL:play()
+	sound.play("SFX_MOVE_FAIL")
 	return false
 end
 

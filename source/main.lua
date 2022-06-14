@@ -12,6 +12,7 @@ import "global"
 import "jitterTable"
 import "stage"
 import "player"
+import "sound"
 
 -- TODO: (+ done, x cancelled)
 -- game over state
@@ -83,16 +84,18 @@ transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
 local font = gfx.font.new("fonts/Roobert-20-Medium")
 gfx.setFont(font)
 
--- sounds
-SFX_MOVE = snd.sampleplayer.new("sounds/move")
-SFX_MOVE_FAIL = snd.sampleplayer.new("sounds/move_fail")
-SFX_GET_KEY = snd.sampleplayer.new("sounds/get_key")
-SFX_GET_CLOCK = snd.sampleplayer.new("sounds/get_clock")
-SFX_USE_KEY = snd.sampleplayer.new("sounds/use_key")
-SFX_STAGE_CLEAR = snd.sampleplayer.new("sounds/stage_clear")
-SFX_TIME_TICK = snd.sampleplayer.new("sounds/time_tick")
-SFX_TIME_OVER = snd.sampleplayer.new("sounds/time_over")
-SFX_CONGRATULATIONS = snd.sampleplayer.new("sounds/congratulations")
+-- Sounds
+sound.loadSamples({
+	SFX_MOVE = "sounds/move",
+	SFX_MOVE_FAIL = "sounds/move_fail",
+	SFX_GET_KEY = "sounds/get_key",
+	SFX_GET_CLOCK = "sounds/get_clock",
+	SFX_USE_KEY = "sounds/use_key",
+	SFX_STAGE_CLEAR = "sounds/stage_clear",
+	SFX_TIME_TICK = "sounds/time_tick",
+	SFX_TIME_OVER = "sounds/time_over",
+	SFX_CONGRATULATIONS = "sounds/congratulations"
+})
 
 -- filenames
 local gameStageFileName <const> = "data/gamestages"
@@ -318,9 +321,9 @@ end
 
 function game:endStage(failed)
 	if failed then
-		SFX_TIME_OVER:play()
+		sound.play("SFX_TIME_OVER")
 	else
-		SFX_STAGE_CLEAR:play()
+		sound.play("SFX_STAGE_CLEAR")
 	end
 	game.inPlay = false
 
@@ -397,7 +400,7 @@ function game:updateGame()
 			game:endStage(true) -- failed: true
 		elseif self.timeRemaining then
 			if math.floor(prevTime) > math.floor(self.timeRemaining) then
-				SFX_TIME_TICK:play()
+				sound.play("SFX_TIME_TICK")
 			end
 			local t = self.timeRemaining % 1
 			local s = self.timeRemaining - t
