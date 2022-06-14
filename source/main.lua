@@ -13,6 +13,7 @@ import "jitterTable"
 import "stage"
 import "player"
 import "sound"
+import "titleScreen"
 
 -- TODO: (+ done, x cancelled)
 -- game over state
@@ -33,9 +34,7 @@ import "sound"
 -- move edit state from player to game
 -- input to player only during game and editor states
 
-
 local gfx <const> = playdate.graphics
-local snd <const> = playdate.sound
 
 -- constants from stage
 local STAGE_WIDTH <const> = stage.kWidth
@@ -55,19 +54,7 @@ local STATE_STAGE_CLEAR <const> = 4
 local STATE_STAGE_FAIL <const> = 5
 local STATE_GAME_CLEAR <const> = 6
 
-
--- logo characters (x, y positions exported from blender. each letter is 3x3)
--- offset should be 8 + multiple of 8
--- scale should be multiple of 8. 24 is good. scale y should be inverted
--- screen width: scale 24, offset per letter 80
--- drawLogo(200, 48, 72, 8, jitterScale, 4) <- this fits the logo perfectly across the top of the screen
-LOGO_P = { 0, 0, 1, 0, 2, 0, 2.38, -0.0761, 2.71, -0.293, 2.92, -0.617, 3, -1, 2.92, -1.38, 2.71, -1.71, 2.38, -1.92, 2, -2, 1, -2, 1, -3, 0, -3, 0, -2, 0, -1 }
-LOGO_U = { 0, -1, 0, -2, 0.0761, -2.38, 0.293, -2.71, 0.617, -2.92, 1, -3, 2, -3, 2.38, -2.92, 2.71, -2.71, 2.92, -2.38, 3, -2, 3, -1, 3, 0, 2, 0, 2, -1, 2, -2, 1, -2, 1, -1, 1, 0, 0, 0 }
-LOGO_L = { 0, -1, 0, -2, 0, -3, 1, -3, 2, -3, 3, -3, 3, -2, 2, -2, 1, -2, 1, -1, 1, 0, 0, 0 }
-LOGO_S = { 1, -3, 2, -3, 2.38, -2.92, 2.71, -2.71, 2.92, -2.38, 3, -2, 2.92, -1.62, 2.71, -1.29, 2.38, -1.08, 2, -1, 1, -1, 2, -1, 3, -1, 3, 0, 2, 0, 1, 0, 0.617, -0.0761, 0.293, -0.293, 0.0761, -0.617, 0, -1, 0.0761, -1.38, 0.293, -1.71, 0.617, -1.92, 1, -2, 2, -2, 1, -2, 0, -2, 0, -3 }
-LOGO_E = { 0, 0, 1, 0, 2, 0, 3, 0, 3, -1, 2, -1, 1, -1, 2, -1, 2, -2, 1, -2, 2, -2, 3, -2, 3, -3, 2, -3, 1, -3, 0, -3, 0, -2, 0, -1 }
-
--- images
+-- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
 local spriteImageTable = gfx.imagetable.new("images/sprites")
 local playerImageTable = gfx.imagetable.new("images/player")
@@ -81,6 +68,10 @@ transitionSprite:setZIndex(32100)
 transitionSprite:moveTo(200,120)
 transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
 
+
+local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
+
+-- Fonts
 local font = gfx.font.new("fonts/Roobert-20-Medium")
 gfx.setFont(font)
 
@@ -97,13 +88,10 @@ sound.loadSamples({
 	SFX_CONGRATULATIONS = "sounds/congratulations"
 })
 
--- filenames
+-- Stage
 local gameStageFileName <const> = "data/gamestages"
 local userStageFileName <const> = "data/userstages"
 
-local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
-
--- stage
 local currentStage = stage.new()
 local currentStageIndex = 1
 stage.setResources(tileImageTable, spriteImageTable, jitter)
@@ -118,84 +106,6 @@ local player1 = player.new()
 local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
-
--- Logo drawing
-function drawLineLoop(lineData, x, y, xScale, yScale, jitterScale)
-	local jx, jy = jitter:get(jitterScale)
-	local cnt = table.getsize(lineData)
-	local p1x = x + jx + lineData[1] * xScale
-	local p1y = y + jy + lineData[2] * yScale
-	local sx, sy = p1x, p1y
-	for i=3, cnt-1, 2 do
-		jx, jy = jitter:get(jitterScale)
-		local p2x = x + jx + lineData[i] * xScale
-		local p2y = y + jy + lineData[i+1] * yScale
-		gfx.drawLine(p1x, p1y, p2x, p2y)
-		p1x, p1y = p2x, p2y
-	end
-	-- draw line back to start of loop
-	gfx.drawLine(p1x, p1y, sx, sy)
-end
-
-
-function drawLogo(cx, cy, letterSize, letterSpacing, jitterScale, lineWidth, invertColors)
-	local sampleIndex = jitter.nextSampleIdx
-	gfx.setLineWidth(lineWidth * 4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
-
-	local letterScale = letterSize / 3
-	local totalWidth = letterSize * 5 + letterSpacing * 4
-	local x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
-	local bgcolor, fgcolor = gfx.kColorBlack, gfx.kColorWhite
-	if invertColors then bgcolor, fgcolor = gfx.kColorWhite, gfx.kColorBlack end
-
-	gfx.setColor(bgcolor)
-
-	for i = 1, 2 do
-		drawLineLoop(LOGO_P, x, y, letterScale, -letterScale, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_U, x, y, letterScale, -letterScale, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_L, x, y, letterScale, -letterScale, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_S, x, y, letterScale, -letterScale, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_E, x, y, letterScale, -letterScale, jitterScale)
-
-		jitter.nextSampleIdx = sampleIndex
-		gfx.setColor(fgcolor)
-		gfx.setLineWidth(lineWidth)
-		x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
-	end
-end
-
-
-function drawTitleScreen(image, jitterScale)
-	image:clear(gfx.kColorBlack)
-	gfx.lockFocus(image)
-
-	local width, height = STAGE_WIDTH, STAGE_HEIGHT
-	local size, offset = STAGE_CELLSIZE, SCREEN_OFFSET
-
-	gfx.setColor(gfx.kColorWhite)
-	gfx.setLineWidth(4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
-
-	for i = 1, STAGE_NUM_CELLS do
-		local x, y = i2xy0(i, STAGE_WIDTH)
-		local xp = x * size + offset
-		local yp = y * size + offset
-		tileImageTable:drawImage(1, xp, yp)
-	end
-
-	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
-	drawLogo(200, 48, 72, 8, jitterScale, 4, false)
-
-	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for options", 200, 140, kTextAlignment.center)
-
-	gfx.unlockFocus()
-end
 
 
 -------------------------------------------------------------------------------
@@ -309,7 +219,7 @@ function game:handleStateEntry()
 	local state = self.currentState
 	if state == STATE_TITLE then
 		-- without this, the stage background will continue to be drawn for a short while
-		drawTitleScreen(bgImage, 0)
+		titleScreen.drawToImage(bgImage, jitter, 0)
 	elseif state == STATE_STAGE_PLAY then
 		player1:reset()
 		loadStage(currentStageIndex)
@@ -373,7 +283,7 @@ function game:updateTitle()
 	local tlim = 0.5
 	jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
 	if t >= tlim then
-		drawTitleScreen(bgImage, jitterScale)
+		titleScreen.drawToImage(bgImage, jitter, jitterScale)
 		-- only redraw the whole screen after transition
 		if game.timeInState > deltaTimeSeconds then
 			gfx.sprite.addDirtyRect(0,0,400,100)
