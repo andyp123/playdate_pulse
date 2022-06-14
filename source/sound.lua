@@ -15,7 +15,7 @@ function sound.loadSamples(samplePaths)
 		local sample, err = snd.sampleplayer.new(v)
 		if sample ~= nil then
 			samples[k] = sample
-			print(string.format("Loaded '%s' as [%s]", v, k))
+			-- print(string.format("Loaded '%s' as [%s]", v, k))
 		else
 			print(string.format("Error: Could not load sample (%s)", err))
 		end	

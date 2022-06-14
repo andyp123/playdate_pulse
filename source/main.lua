@@ -15,34 +15,15 @@ import "player"
 import "sound"
 import "titleScreen"
 
--- TODO: (+ done, x cancelled)
--- game over state
--- game clear state
--- level select menu
--- user stage editing
--- stage editor menu
--- 12 stages to start with
--- think about modifications to gameplay... (5-7 modes?)
--- - default controls
--- - crank forward controls (hold direction and use crank to move forward)
--- - dark mode (stage only visible during pulse)
--- - instant death mode (pushing into a wall or door fails you)
--- - all corners mode (touch every tile)
--- - collector (get every special item)
--- - no way back (blocks previously occupied are filled)
--- move input from player to main loop
--- move edit state from player to game
--- input to player only during game and editor states
-
 local gfx <const> = playdate.graphics
 
 -- constants from stage
 local STAGE_WIDTH <const> = stage.kWidth
 local STAGE_HEIGHT <const> = stage.kHeight
-local STAGE_NUM_CELLS <const> = stage.kNumCells
-local STAGE_CELLSIZE <const> = stage.kCellSize
-local SCREEN_OFFSET <const> = stage.kScreenOffset
-local SPRITE_OFFSET <const> = stage.kSpriteOffset
+-- local STAGE_NUM_CELLS <const> = stage.kNumCells
+-- local STAGE_CELLSIZE <const> = stage.kCellSize
+-- local SCREEN_OFFSET <const> = stage.kScreenOffset
+-- local SPRITE_OFFSET <const> = stage.kSpriteOffset
 
 local cellTypes <const> = stage.cellTypes
 
@@ -77,15 +58,21 @@ gfx.setFont(font)
 
 -- Sounds
 sound.loadSamples({
-	SFX_MOVE = "sounds/move",
-	SFX_MOVE_FAIL = "sounds/move_fail",
-	SFX_GET_KEY = "sounds/get_key",
-	SFX_GET_CLOCK = "sounds/get_clock",
-	SFX_USE_KEY = "sounds/use_key",
-	SFX_STAGE_CLEAR = "sounds/stage_clear",
-	SFX_TIME_TICK = "sounds/time_tick",
-	SFX_TIME_OVER = "sounds/time_over",
-	SFX_CONGRATULATIONS = "sounds/congratulations"
+	MOVE = "sounds/move",
+	MOVE_FAIL = "sounds/move_fail",
+	GET_KEY = "sounds/get_key",
+	GET_CLOCK = "sounds/get_clock",
+	USE_KEY = "sounds/use_key",
+	GET_ROTATE_L = "",
+	GET_ROTATE_R = "",
+	GET_DIAMOND = "",
+	GET_HEART = "",
+	PRESS_SWITCH = "",
+	FLIP_BLOCK = "",
+	TIME_TICK = "sounds/time_tick",
+	TIME_OVER = "sounds/time_over",
+	STAGE_CLEAR = "sounds/stage_clear",
+	CONGRATULATIONS = "sounds/congratulations"
 })
 
 -- Stage
@@ -231,9 +218,9 @@ end
 
 function game:endStage(failed)
 	if failed then
-		sound.play("SFX_TIME_OVER")
+		sound.play("TIME_OVER")
 	else
-		sound.play("SFX_STAGE_CLEAR")
+		sound.play("STAGE_CLEAR")
 	end
 	game.inPlay = false
 
@@ -310,7 +297,7 @@ function game:updateGame()
 			game:endStage(true) -- failed: true
 		elseif self.timeRemaining then
 			if math.floor(prevTime) > math.floor(self.timeRemaining) then
-				sound.play("SFX_TIME_TICK")
+				sound.play("TIME_TICK")
 			end
 			local t = self.timeRemaining % 1
 			local s = self.timeRemaining - t

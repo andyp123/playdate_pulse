@@ -1,0 +1,82 @@
+PULSE TODO
+----------
+
+- level select menu
+- user stage editing
+- stage editor menu
+- handle transitions better
+  - title screen and game are white on black, most other screens are black on white
+  - in between stage screen showing current time spent, lives left etc.
+  - game over screen
+  - high scores screen
+- game over state
+- game clear state
+- 12 stages to start with
+- think about modifications to gameplay... (5-7 modes?)
+  - default controls
+  - crank forward controls (hold direction and use crank to move forward)
+  - dark mode (stage only visible during pulse)
+  - instant death mode (pushing into a wall or door fails you)
+  - all corners mode (touch every tile)
+  - collector (get every special item/diamond)
+  - no way back (blocks previously occupied are filled)
+- move input from player to main loop
+- move edit state from player to game
+- input to player only during game and editor states
+- perhaps move more stuff into the global.lua file?
+
+Sounds Needed:
+The current sounds are taken from the old web version of this game, and were
+made with a tool called bfxr. They are bad but I thought they kind of fit the
+game somehow. There's no need to stay so lo-fi.
+
+What would be nice is the main pulse/time ticking sound gradually built up
+in urgency along with the pulse jittering effect that affects the stage boundaries
+as the timer nears zero. In general, stages take 10 seconds, but time can be
+extended by 2 seconds at a time, and the stage might be be longer or shorter.
+
+Playdate SDK has a few functions in the sound library for modifying sounds, but
+obviously it's very simple compared wto wwise etc.
+https://sdk.play.date/1.11.1/Inside%20Playdate.html#M-sound
+
+Midi type sounds can be generated, but you probably want to check out the
+various filters that can be applied to samples.
+Playdate also has a microphone if you have any cool ideas to use it.
+
+Main Game:
+Move
+Move Fail
+Move Death (if instant death mode activated)
+Get Key
+Get Clock
+Get Rotate Left
+Get Rotate Right
+Get Diamond
+Get Heart
+Use Key
+Press Switch (switches block state on stage)
+Block State Flip
+
+Time Tick
+Time Over
+
+Stage Clear
+Final Stage Clear
+Game Clear
+
+Menus Etc.
+Title Screen Logo Pulse
+Title Music
+High Score Jingle (fastest times)
+Menu Advance/Accept
+Menu Back
+Menu Selection Change
+
+Transition Fade In
+Transition Fade Out
+
+Edit Mode:
+Move Cursor
+Change Tile Type
+Save Stage
+Load Stage

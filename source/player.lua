@@ -140,43 +140,44 @@ function player:tryMoveAndCollect(x, y)
 		local typeId = self.currentStage.cells[i]
 
 		if typeId == cellTypes.SOLID or typeId == cellTypes.BLOCK_CLOSED then
-			sound.play("SFX_MOVE_FAIL")
+			sound.play("MOVE_FAIL")
 			return false
 		elseif typeId == cellTypes.DOOR then
 			if self.keys > 0 then
 				self.keys -= 1
 				self.currentStage:editCell(x, y, cellTypes.EMPTY)
-				sound.play("SFX_USE_KEY")
+				sound.play("USE_KEY")
 				return true
 			else
-				sound.play("SFX_MOVE_FAIL")
+				sound.play("MOVE_FAIL")
 				return false
 			end
 		elseif typeId == cellTypes.KEY then
 			self.keys += 1
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("SFX_GET_KEY")
+			sound.play("GET_KEY")
 			return true
 		elseif typeId == cellTypes.CLOCK then
 			if self.getTimeCallback ~= nil then
 				self.getTimeCallback(2)
 			end
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("SFX_GET_CLOCK")
+			sound.play("GET_CLOCK")
 			return true
 		elseif typeId == cellTypes.ROTATE_LEFT then
 			self.inputRotation = (self.inputRotation + 3) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("SFX_GET_CLOCK")
+			sound.play("GET_ROTATE_L")
 			return true
 		elseif typeId == cellTypes.ROTATE_RIGHT then
 			self.inputRotation = (self.inputRotation + 1) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("SFX_GET_CLOCK")
+			sound.play("GET_ROTATE_R")
 			return true
 		elseif typeId == cellTypes.SWITCH then
 			-- flip state of blocks to BLOCK_OPEN and vice versa
 			self.currentStage:swapCellTypes(cellTypes.BLOCK_CLOSED, cellTypes.BLOCK_OPEN)
+			sound.play("PRESS_SWITCH")
 		elseif typeId == cellTypes.EXIT then
 			if self.reachExitCallback ~= nil then
 				self.reachExitCallback()
@@ -185,11 +186,11 @@ function player:tryMoveAndCollect(x, y)
 		end
 
 		-- empty or undefined
-		sound.play("SFX_MOVE")
+		sound.play("MOVE")
 		return true
 	end
 	
-	sound.play("SFX_MOVE_FAIL")
+	sound.play("MOVE_FAIL")
 	return false
 end
 
