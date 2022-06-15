@@ -66,16 +66,16 @@ sound.loadSamples({
 	GET_KEY = "sounds/get_key",
 	GET_CLOCK = "sounds/get_clock",
 	USE_KEY = "sounds/use_key",
-	GET_ROTATE_L = "",
-	GET_ROTATE_R = "",
-	GET_DIAMOND = "",
-	GET_HEART = "",
-	PRESS_SWITCH = "",
-	FLIP_BLOCK = "",
+	GET_ROTATE_L = "sounds/get_rotate",
+	GET_ROTATE_R = "sounds/get_rotate",
+	PRESS_SWITCH = "sounds/block_move",
+	GET_HEART = "sounds/get_heart",
+	GET_GEM = "sounds/get_gem",
 	TIME_TICK = "sounds/time_tick",
 	TIME_OVER = "sounds/time_over",
 	STAGE_CLEAR = "sounds/stage_clear",
-	CONGRATULATIONS = "sounds/congratulations"
+	CONGRATULATIONS = "sounds/congratulations",
+	MENU_MOVE = "sounds/menu_move"
 })
 
 -- Stage
@@ -204,6 +204,8 @@ end
 -------------------------------------------------------------------------------
 function game:handleStateEntry()
 	player1:setVisible(false)
+	levelSelect.setCursorVisible(false)
+
 
 	-- handle specific state functions
 	local state = self.currentState

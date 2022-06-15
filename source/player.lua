@@ -46,6 +46,7 @@ function player.new()
 		x = 1,
 		y = 1,
 		keys = 0,
+		lives = 0,
 		inputRotation = 0, -- 0-3, corresponding to 0, 90, 180, 270
 		sprite = sprite,
 		frame = 1,
@@ -61,6 +62,7 @@ end
 function player:reset()
 	self.sprite:setVisible(true)
 	self.keys = 0
+	self.lives = 0
 	self.inputRotation = 0
 	self.frame = 1
 	self.sprite:setImage(self.playerImages:getImage(1))
@@ -178,6 +180,13 @@ function player:tryMoveAndCollect(x, y)
 			-- flip state of blocks to BLOCK_OPEN and vice versa
 			self.currentStage:swapCellTypes(cellTypes.BLOCK_CLOSED, cellTypes.BLOCK_OPEN)
 			sound.play("PRESS_SWITCH")
+		elseif typeId == cellTypes.HEART then
+			self.currentStage:editCell(x, y, cellTypes.EMPTY)
+			self.lives += 1 --clamp(self.lives + 1, 1, 3)
+			sound.play("GET_HEART")
+		elseif typeId == cellTypes.GEM then
+			self.currentStage:editCell(x, y, cellTypes.EMPTY)
+			sound.play("GET_GEM")
 		elseif typeId == cellTypes.EXIT then
 			if self.reachExitCallback ~= nil then
 				self.reachExitCallback()

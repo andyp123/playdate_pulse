@@ -6,6 +6,7 @@ import "CoreLibs/sprites"
 -- Pulse
 import "global"
 import "stage" -- need constants from here
+import "sound"
 
 local gfx <const> = playdate.graphics
 
@@ -68,6 +69,7 @@ function levelSelect.update()
 			cursor.y = y
 			cursor.updatePosition()
 			levelSelect.selectedIndex = ni
+			sound.play("MENU_MOVE")
 		else
 			-- couldn't move cursor
 		end

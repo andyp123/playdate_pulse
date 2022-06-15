@@ -41,7 +41,9 @@ stage.cellTypes = {
 	BLOCK_CLOSED = 9,
 	BLOCK_OPEN = 10,
 	SWITCH = 11,
-	MAX = 11
+	HEART = 12,
+	GEM = 13,
+	MAX = 13
 }
 
 -- Stage data file names
