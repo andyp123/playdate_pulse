@@ -4,6 +4,7 @@ import "CoreLibs/graphics"
 import "CoreLibs/sprites"
 
 -- Pulse
+import "global"
 import "stage" -- need constants from here
 
 local gfx <const> = playdate.graphics
@@ -12,8 +13,66 @@ levelSelect = {}
 levelSelect.__index = levelSelect
 
 
--- draw selection cursor over the menu. Give simple version of player logic for selection
--- rerender only the selection sprite on selection change
+
+function levelSelect.init()
+	local size = stage.kCellSize
+	local img = gfx.image.new(size, size, gfx.kColorWhite)
+	local sprite = gfx.sprite.new(img)
+	sprite:setImageDrawMode(gfx.kDrawModeXOR)
+	sprite:moveTo(stage.kSpriteOffset, stage.kSpriteOffset)
+	sprite:add()
+	sprite:setVisible(false)
+
+	local cursor = {
+		x = 1,
+		y = 1,
+		sprite = sprite
+	}
+
+	function cursor.updatePosition()
+		local xpos = (cursor.x - 1) * stage.kCellSize + stage.kSpriteOffset
+		local ypos = (cursor.y - 1) * stage.kCellSize + stage.kSpriteOffset
+		sprite:moveTo(xpos, ypos)
+	end
+
+	levelSelect.cursor = cursor
+	levelSelect.selectedIndex = 1
+end
+
+levelSelect.init()
+
+
+function levelSelect.setCursorVisible(visible)
+	levelSelect.cursor.sprite:setVisible(visible)
+end
+
+
+function levelSelect.update()
+	local cursor = levelSelect.cursor
+	local mx, my = 0, 0
+	if playdate.buttonJustPressed(playdate.kButtonLeft)  then mx = -1 end
+	if playdate.buttonJustPressed(playdate.kButtonRight) then mx = 1 end
+	if playdate.buttonJustPressed(playdate.kButtonUp)    then my = -1 end
+	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
+
+	-- testing a different cursor movement for menus
+	if mx ~= 0 or my ~= 0 then
+		local i = xy2i(cursor.x, cursor.y, stage.kWidth)
+		local ni = i
+		ni += mx
+		ni += my * stage.kWidth
+		ni = clamp(ni, 1, clamp(stage.getNumStages() + 1, 1, stage.kNumCells))
+		if ni ~= i then
+			local x, y = i2xy(ni, stage.kWidth)
+			cursor.x = x
+			cursor.y = y
+			cursor.updatePosition()
+			levelSelect.selectedIndex = ni
+		else
+			-- couldn't move cursor
+		end
+	end
+end
 
 
 function levelSelect.drawToImage(image, font)
@@ -23,19 +82,14 @@ function levelSelect.drawToImage(image, font)
 	-- get constants from stage
 	local numCells = stage.kNumCells
 	local width, height, size = stage.kWidth, stage.kHeight, stage.kCellSize
-	local xOffset, yOffset = stage.kScreenOffset + size // 2, stage.kScreenOffset + 10
+	local xOffset, yOffset = stage.kScreenOffset + size // 2 + 4, stage.kScreenOffset + 10
 	local tileImages = stage.tileImages
 
-	local numStages = clamp(stage.getNumStages(), 0, numCells)
-
-	gfx.setColor(gfx.kColorWhite)
-	gfx.setLineWidth(4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
-
 	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
-	-- gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for options", 200, 140, kTextAlignment.center)
 
-	for i = 1, numStages + 1 do
+	local numStages = clamp(stage.getNumStages(), 0, numCells)
+	local cnt = clamp(numStages + 1, 1, numCells)
+	for i = 1, cnt do
 		local x, y = i2xy0(i, width)
 		local xp = x * size + xOffset
 		local yp = y * size + yOffset

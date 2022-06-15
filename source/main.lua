@@ -215,6 +215,8 @@ function game:handleStateEntry()
 		loadStage(currentStageIndex)
 		self.timeRemaining = currentStage.time
 		gfx.sprite.redrawBackground()
+	elseif state == STATE_LEVEL_SELECT then
+		levelSelect.setCursorVisible(true)
 	end
 end
 
@@ -271,8 +273,19 @@ function game:updateLevelSelect()
 		levelSelect.drawToImage(bgImage, numerals)
 	end
 
+	levelSelect.update()
+
 	-- Return to title screen if B pressed
-	if playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
+	if playdate.buttonJustPressed(playdate.kButtonA) and not self:inTransition() then
+		levelSelect.setCursorVisible(false)
+		currentStageIndex = levelSelect.selectedIndex
+		if currentStageIndex > stage.getNumStages() then
+			player1.editModeEnabled = true
+			player1:editModeUpdateType()
+			player1:updateSpriteImage()
+		end
+		game:changeState(STATE_STAGE_PLAY)
+	elseif playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
 		game:changeState(STATE_TITLE)
 	end
 end
