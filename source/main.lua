@@ -14,6 +14,7 @@ import "stage"
 import "player"
 import "sound"
 import "titleScreen"
+import "levelSelect"
 
 local gfx <const> = playdate.graphics
 
@@ -34,6 +35,7 @@ local STATE_STAGE_PLAY <const> = 3
 local STATE_STAGE_CLEAR <const> = 4
 local STATE_STAGE_FAIL <const> = 5
 local STATE_GAME_CLEAR <const> = 6
+local STATE_LEVEL_SELECT <const> = 7
 
 -- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
@@ -54,6 +56,7 @@ local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
 
 -- Fonts
 local font = gfx.font.new("fonts/Roobert-20-Medium")
+local numerals = gfx.font.new("fonts/Roobert-11-Medium-Numerals")
 gfx.setFont(font)
 
 -- Sounds
@@ -242,8 +245,6 @@ function game:update()
 	local state = self.currentState
 	if state == STATE_TITLE then
 		self:updateTitle()
-	elseif state == STATE_STAGE_WAIT then
-		-- play stage intro
 	elseif state == STATE_STAGE_PLAY then
 		if not player1.editModeEnabled then
 			self:updateGame()
@@ -256,10 +257,24 @@ function game:update()
 		-- play stage fail anim
 	elseif state == STATE_GAME_CLEAR then
 		-- play game/course clear anim
+	elseif state == STATE_LEVEL_SELECT then
+		self:updateLevelSelect()
 	else
 	end
 
 	self:updateTransition()
+end
+
+
+function game:updateLevelSelect()
+	if game.timeInState <= deltaTimeSeconds then
+		levelSelect.drawToImage(bgImage, numerals)
+	end
+
+	-- Return to title screen if B pressed
+	if playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
+		game:changeState(STATE_TITLE)
+	end
 end
 
 
@@ -285,7 +300,13 @@ function game:updateTitle()
 	if playdate.buttonJustPressed(playdate.kButtonA) and not self:inTransition() then
 		game:changeState(STATE_STAGE_PLAY)
 	end
+
+	-- Level select if B pressed
+	if playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
+		game:changeState(STATE_LEVEL_SELECT)
+	end
 end
+
 
 function game:updateGame()
 	if not self:inTransition() then
