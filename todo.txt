@@ -1,6 +1,7 @@
 PULSE TODO
 ----------
 
+- Ally's idea: use crank to rotate key to specific orientation
 - level select menu
 - user stage editing
 - stage editor menu

@@ -12,6 +12,10 @@ levelSelect = {}
 levelSelect.__index = levelSelect
 
 
+-- draw selection cursor over the menu. Give simple version of player logic for selection
+-- rerender only the selection sprite on selection change
+
+
 function levelSelect.drawToImage(image, font)
 	image:clear(gfx.kColorWhite)
 	gfx.lockFocus(image)
@@ -31,12 +35,14 @@ function levelSelect.drawToImage(image, font)
 	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
 	-- gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for options", 200, 140, kTextAlignment.center)
 
-	for i = 1, numStages do
+	for i = 1, numStages + 1 do
 		local x, y = i2xy0(i, width)
 		local xp = x * size + xOffset
 		local yp = y * size + yOffset
 		-- tileImages:drawImage(1, xp, yp)
-		font:drawTextAligned(string.format("%d", i), xp, yp, kTextAlignment.center)
+		local text = string.format("%d", i)
+		if i > numStages then text = "+" end
+		font:drawTextAligned(text, xp, yp, kTextAlignment.center)
 	end
 
 	gfx.unlockFocus()
