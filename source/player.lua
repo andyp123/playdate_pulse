@@ -47,7 +47,7 @@ function player.new()
 		x = 1,
 		y = 1,
 		keys = 0,
-		lives = 0,
+		lives = 1,
 		inputRotation = 0, -- 0-3, corresponding to 0, 90, 180, 270
 		sprite = sprite,
 		frame = 1,
@@ -63,7 +63,7 @@ end
 function player:reset()
 	self.sprite:setVisible(true)
 	self.keys = 0
-	self.lives = 0
+	-- self.lives = 1
 	self.inputRotation = 0
 	self.frame = 1
 	self.sprite:setImage(self.playerImages:getImage(1))
@@ -199,7 +199,6 @@ function player:tryMoveAndCollect(x, y)
 				local doorIndex = self.currentStage:findCellOfType(cellTypes.GEM_DOOR)
 				if doorIndex ~= nil then
 					local doorX, doorY = i2xy(doorIndex, stage.kWidth)
-					print(doorIndex, doorX, doorY)
 					self.currentStage:editCell(doorX, doorY, cellTypes.EXIT)
 					-- play door open sound (gems only on gem collector stages?)
 				else
@@ -211,9 +210,9 @@ function player:tryMoveAndCollect(x, y)
 			end
 		elseif typeId == cellTypes.MINE then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			self.lives -= 1 -- if lives < 0 then game over
-			-- play hit mine sound
-			-- probably play some anim or hide player sprite
+			-- self.lives -= 1 -- if lives < 1 then game over
+			sound.play("MINE_EXPLODE")
+			self:setVisible(false)
 			if self.deathCallback ~= nil then
 				self.deathCallback()
 			end

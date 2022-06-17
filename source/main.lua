@@ -73,6 +73,7 @@ sound.loadSamples({
 	GET_GEM = "sounds/get_gem",
 	TIME_TICK = "sounds/time_tick",
 	TIME_OVER = "sounds/time_over",
+	MINE_EXPLODE = "sounds/mine_explode",
 	STAGE_CLEAR = "sounds/stage_clear",
 	CONGRATULATIONS = "sounds/congratulations",
 	MENU_MOVE = "sounds/menu_move"
@@ -130,6 +131,11 @@ end
 
 function game:changeState(state, skipFadeOut)
 	game.transitionNextState = state
+
+	-- hack for player lives (make sure to reset to 1 unless continuing a game)
+	if state == STATE_STAGE_PLAY and game.currentState ~= STATE_STAGE_PLAY then
+		player1.lives = 1
+	end
 
 	if skipFadeOut then
 		self:enterNextState()
@@ -230,6 +236,7 @@ function game:endStage(failed)
 		else
 			sound.play("TIME_OVER")
 		end
+		player1.lives -= 1
 	else
 		sound.play("STAGE_CLEAR")
 	end

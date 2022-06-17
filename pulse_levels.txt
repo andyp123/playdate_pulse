@@ -10,7 +10,7 @@ or
 10 x 7 = 70
 10 x 6 = 60
 
-stage groups are horizontal rows of stages. Player can only start from the first in each row,
+zones are horizontal rows of stages (on stage select). Player can only start from the first stage in each zone,
 which are unlocked only once the player clears the previous row (?)
 
 	DOOR
@@ -41,12 +41,16 @@ Mines (moving mines move each pulse and take an action only when they hit a non-
 
 
 Level Options:
+Deep Breaths: The pulse either stops or slows way down (and changes sound), allowing the player more time to understand a gimmick/item
+ - just used for the entry level of each zone
 Piston: Blocks auto flip every 2 seconds. If player stands on a block when it moves, either game over OR the block stays open (getting out of sync on purpose)
+ - sometimes used on stages with mechanical things
 Space Filler: Blocks fill up as the player moves, forcing their path through the level to be considered.
+ - starts appearing from zone 3
 Gem Collector: Must get all the gems before the exit opens
+ - sometimes used in all zones
 Four Corners: Player must touch every tile at least once
 Black out: The stage is only visible during a pulse
-Deep Breaths: The pulse either stops or slows way down (and changes sound), allowing the player more time to understand a gimmick/item
 
 General Design:
 - The first time very difficult/tricky gimmicks are introduced, provide the player with an easy heart
