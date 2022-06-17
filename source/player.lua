@@ -22,6 +22,7 @@ player.actorImages = nil -- used for displaying editmode tools (and player as ke
 
 player.reachExitCallback = nil
 player.getTimeCallback = nil
+player.deathCallback = nil
 
 
 function player.setResources(stage, playerImageTable, actorImageTable)
@@ -144,6 +145,10 @@ function player:tryMoveAndCollect(x, y)
 		if typeId == cellTypes.SOLID or typeId == cellTypes.BLOCK_CLOSED then
 			sound.play("MOVE_FAIL")
 			return false
+		elseif typeId == cellTypes.GEM_DOOR then
+			-- may have a special sound?
+			sound.play("MOVE_FAIL")
+			return false
 		elseif typeId == cellTypes.DOOR then
 			if self.keys > 0 then
 				self.keys -= 1
@@ -176,8 +181,11 @@ function player:tryMoveAndCollect(x, y)
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
 			sound.play("GET_ROTATE_R")
 			return true
-		elseif typeId == cellTypes.SWITCH then
+		elseif typeId == cellTypes.SWITCH or typeId == cellTypes.SWITCH_ONCE then
 			-- flip state of blocks to BLOCK_OPEN and vice versa
+			if typeId == cellTypes.SWITCH_ONCE then
+				self.currentStage:editCell(x, y, cellTypes.EMPTY)
+			end
 			self.currentStage:swapCellTypes(cellTypes.BLOCK_CLOSED, cellTypes.BLOCK_OPEN)
 			sound.play("PRESS_SWITCH")
 		elseif typeId == cellTypes.HEART then
@@ -186,7 +194,29 @@ function player:tryMoveAndCollect(x, y)
 			sound.play("GET_HEART")
 		elseif typeId == cellTypes.GEM then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("GET_GEM")
+			local gem = self.currentStage:findCellOfType(cellTypes.GEM)
+			if gem == nil then
+				local doorIndex = self.currentStage:findCellOfType(cellTypes.GEM_DOOR)
+				if doorIndex ~= nil then
+					local doorX, doorY = i2xy(doorIndex, stage.kWidth)
+					print(doorIndex, doorX, doorY)
+					self.currentStage:editCell(doorX, doorY, cellTypes.EXIT)
+					-- play door open sound (gems only on gem collector stages?)
+				else
+					-- got all gems!
+					-- sound.play("ALL_GEMS")
+				end
+			else
+				sound.play("GET_GEM")
+			end
+		elseif typeId == cellTypes.MINE then
+			self.currentStage:editCell(x, y, cellTypes.EMPTY)
+			self.lives -= 1 -- if lives < 0 then game over
+			-- play hit mine sound
+			-- probably play some anim or hide player sprite
+			if self.deathCallback ~= nil then
+				self.deathCallback()
+			end
 		elseif typeId == cellTypes.EXIT then
 			if self.reachExitCallback ~= nil then
 				self.reachExitCallback()

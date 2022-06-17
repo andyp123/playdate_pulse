@@ -26,6 +26,12 @@ stage.kSpriteOffset = 24
 -- Default settings
 stage.kDefaultTime = 10
 
+stage.modes = {
+	STANDARD = 0,
+	GEM_COLLECTOR = 1,
+	SPACE_FILLER = 2
+}
+
 -- Cell types correspond to sprite indices
 -- A table of values seems easier to work with than individual constants
 stage.cellTypes = {
@@ -41,9 +47,16 @@ stage.cellTypes = {
 	BLOCK_CLOSED = 9,
 	BLOCK_OPEN = 10,
 	SWITCH = 11,
-	HEART = 12,
+	SWITCH_ONCE = 12,
 	GEM = 13,
-	MAX = 13
+	GEM_DOOR = 14,
+	MINE = 15,
+	HEART = 16,
+	PASSBLOCK_UP = 17,
+	PASSBLOCK_RIGHT = 18,
+	PASSBLOCK_DOWN = 19,
+	PASSBLOCK_LEFT = 20,
+	MAX = 20
 }
 
 -- Stage data file names
@@ -170,6 +183,16 @@ function stage:findCellOfType(typeId, start)
 			return i
 		end
 	end
+end
+
+
+function stage:countCellOfType(typeId)
+	local cells = self.cells
+	local count = 0
+	for i = 0, self.kNumCells do
+		if cells[i] == typeId then count += 1 end
+	end
+	return count
 end
 
 

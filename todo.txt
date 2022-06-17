@@ -4,7 +4,11 @@ PULSE TODO
 - Ally's idea: use crank to rotate key to specific orientation
 - level select menu
 - user stage editing
-- stage editor menu
+- menu system and menus
+  - stage options (play, edit, delete, duplicate, game/user stages toggle)
+  - title options (see scores, go to stage select)
+  - in game options (back to title, restart zone)
+  - in editor options (play, save, revert, clear filled, clear empty)
 - handle transitions better
   - title screen and game are white on black, most other screens are black on white
   - in between stage screen showing current time spent, lives left etc.
@@ -21,6 +25,7 @@ PULSE TODO
   - all corners mode (touch every tile)
   - collector (get every special item/diamond)
   - no way back (blocks previously occupied are filled)
+  - limited moves (each move is one second/pulse)
 - move input from player to main loop
 - move edit state from player to game
 - input to player only during game and editor states

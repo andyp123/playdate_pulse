@@ -225,17 +225,24 @@ end
 
 function game:endStage(failed)
 	if failed then
-		sound.play("TIME_OVER")
+		if self.timeRemaining > 0 then
+			-- player died
+		else
+			sound.play("TIME_OVER")
+		end
 	else
 		sound.play("STAGE_CLEAR")
 	end
-	game.inPlay = false
+	-- game.inPlay = false
 
 	local numStages = stage.getNumStages()
-	if failed or currentStageIndex + 1 > numStages then
+	if failed and player1.lives > 0 then
+		-- reload the level
+		self:changeState(STATE_STAGE_PLAY)
+	elseif (failed and player1.lives <= 0) or currentStageIndex + 1 > numStages then
 		currentStage:clear()
 		self:changeState(STATE_TITLE)
-		currentStageIndex = 1	
+		currentStageIndex = 1
 	else
 		currentStageIndex += 1
 		self:changeState(STATE_STAGE_PLAY)
@@ -409,6 +416,7 @@ function initGame()
 	player1:setVisible(false)
 	player.getTimeCallback = function(t) game:addTime(t) end
 	player.reachExitCallback = function() game:endStage() end
+	player.deathCallback = function() game:endStage(true) end
 
 	game:changeState(STATE_TITLE, true)
 
