@@ -1,0 +1,93 @@
+Pulse levels:
+
+Need 84 levels total, but probably want to start with lower number, like 12-24 and then build up
+
+12 x 7 = 84 (all)
+12 x 6 = 72
+
+or
+
+10 x 7 = 70
+10 x 6 = 60
+
+stage groups are horizontal rows of stages. Player can only start from the first in each row,
+which are unlocked only once the player clears the previous row (?)
+
+	DOOR
+	KEY
+	CLOCK
+	ROTATE_LEFT - rotate controls
+	ROTATE_RIGHT
+	BLOCK_CLOSED
+	BLOCK_OPEN
+	SWITCH
+	HEART
+	GEM
+
+Additions:
+	ONEWAY_LEFT - solid, but the player can pass through to the other side in one direction
+	ONEWAY_RIGHT
+	ONEWAY_UP
+	ONEWAY_DOWN
+	SWITCH_ONCE - looks similar to a normal switch, but is activated once and then vanishes
+	NEVER_BLOCK - in Space Filler mode will never turn into a block after the player steps off it
+
+Mines (moving mines move each pulse and take an action only when they hit a non-empty block):
+	MINE - stationary mine (touch and die)
+	MINE_LR - mine that moves left and right
+	MINE_UD - mine that moves up and down
+	MINE_TR - mine that turns right
+	MINE_TL - mine that turns left
+
+
+Level Options:
+Piston: Blocks auto flip every 2 seconds. If player stands on a block when it moves, either game over OR the block stays open (getting out of sync on purpose)
+Space Filler: Blocks fill up as the player moves, forcing their path through the level to be considered.
+Gem Collector: Must get all the gems before the exit opens
+Four Corners: Player must touch every tile at least once
+Black out: The stage is only visible during a pulse
+Deep Breaths: The pulse either stops or slows way down (and changes sound), allowing the player more time to understand a gimmick/item
+
+General Design:
+- The first time very difficult/tricky gimmicks are introduced, provide the player with an easy heart
+- Ease the player into the more confusing gimmicks, such as the level options and control rotating items
+- Have a few super simple stages that are more like corridors between stages to allow the player to relax. These could even stop the pulse and have no timer.
+
+Simple levels:
+- keep items to just clock and key
+- level gimmicks to just door
+
+1 - Movement, clocks, doors and keys
+2 - Mechanical (buttons and switches)
+3
+4
+5
+6
+7 - everything no restrictions
+
+
+1 - ENTRY (movement only)
+2 - movement within time (longer stage with clock powerup)
+3 - locked door with key
+4 - more difficult locked door stage
+5 - two doors block exit (se)
+6
+7
+8
+9
+10
+11
+12
+
+13 - ENTRY (mechanical)
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
