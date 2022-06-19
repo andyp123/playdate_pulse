@@ -235,11 +235,14 @@ end
 
 function player:editModeUpdate(mx, my)
 	if mx ~= 0 or my ~= 0 then
-		self:editModeTryMove(mx, my)
+		if self:editModeTryMove(mx, my) then
+			sound.play("EDIT_MOVE")
+		end		
 	end
 
 	if playdate.buttonJustPressed(playdate.kButtonA) then
 		self.currentStage:editCell(self.x, self.y, self.editModeTypeId)
+		sound.play("EDIT_TILE")
 	end
 
 	if playdate.getCrankChange() ~= 0 then
@@ -253,7 +256,9 @@ function player:editModeTryMove(mx, my)
 		self.x += mx
 		self.y += my
 		self.sprite:moveBy(mx * stage.kCellSize, my * stage.kCellSize)
+		return true
 	end
+	return false
 end
 
 

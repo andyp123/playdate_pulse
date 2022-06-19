@@ -80,7 +80,9 @@ sound.loadSamples({
 	CONGRATULATIONS = "sounds/congratulations",
 	MENU_MOVE = "sounds/menu_move_2",
 	MENU_BACK = "sounds/menu_back",
-	MENU_SELECT = "sounds/menu_select"
+	MENU_SELECT = "sounds/menu_select",
+	EDIT_MOVE = "sounds/edit_move",
+	EDIT_TILE = "sounds/edit_tile"
 })
 
 -- Stage
@@ -119,7 +121,6 @@ menu.new("LEVELS_MENU", {
 }, font, 260, 32, 12, 32000)
 
 menu.new("PAUSE_MENU", {
-	"Resume",
 	"Restart Zone",
 	"Quit to Title"
 }, font, 260, 32, 12, 32000)
@@ -130,7 +131,7 @@ menu.new("EDIT_MENU", {
 	"Revert Level",
 	"Clear (Filled)",
 	"Clear (Empty)",
-	"Quit to Title"
+	"Back to Level Select"
 }, font, 260, 32, 12, 32000)
 
 
@@ -253,6 +254,8 @@ function game:handleStateEntry()
 	if state == STATE_TITLE then
 		-- without this, the stage background will continue to be drawn for a short while
 		titleScreen.drawToImage(bgImage, jitter, 0)
+		player1.editModeEnabled = false
+		currentStageIndex = 1
 	elseif state == STATE_STAGE_PLAY then
 		player1:reset()
 		loadStage(currentStageIndex)
@@ -435,10 +438,10 @@ function game:updateGame()
 		end
 	else
 		local si = pauseMenu:updateAndGetAnySelection()
-		if si == 3 then
+		if si == 2 then
 			currentStage:clear()
 			game:changeState(STATE_TITLE)
-		elseif si == 2 then
+		elseif si == 1 then
 			-- restart zone
 		end
 	end
@@ -474,8 +477,9 @@ function game:updateEditMode()
 			currentStage:drawToImage()
 			gfx.sprite.redrawBackground()
 		elseif si == 6 then
+			player1.editModeEnabled = false
 			currentStage:clear()
-			game:changeState(STATE_TITLE)
+			game:changeState(STATE_LEVEL_SELECT)
 		end
 	end
 end
@@ -494,12 +498,12 @@ function playdate.update()
 	playdate.timer.updateTimers()
 
 	-- seem to have issues if I do this before anything else...
-	-- local timeString = string.format("%.3f", game.timeRemaining)
-	-- local px,py = player1.sprite:getPosition()
-	-- local currentDrawMode = gfx.getImageDrawMode()
-	-- gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	-- gfx.drawText(timeString, px+16, py-8)
-	-- gfx.setImageDrawMode(currentDrawMode)
+	local timeString = string.format("%.3f", game.timeRemaining)
+	local px,py = player1.sprite:getPosition()
+	local currentDrawMode = gfx.getImageDrawMode()
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	gfx.drawText(timeString, px+16, py-8)
+	gfx.setImageDrawMode(currentDrawMode)
 end
 
 
@@ -513,7 +517,7 @@ function loadStage(stageId)
 		gfx.sprite.redrawBackground()
 
 		local i = currentStage:findCellOfType(cellTypes.START)
-		if i > 0 then
+		if i then
 			local x, y = i2xy(i, STAGE_WIDTH)
 			player1:moveTo(x, y)
 		end
@@ -547,27 +551,6 @@ function initGame()
 			gfx.clearClipRect()
 		end
 	)
-
-	-- add menu option
-	-- local menu = playdate.getSystemMenu()
-	-- local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
-	-- 	player1.editModeEnabled = not player1.editModeEnabled
-	-- 	player1:editModeUpdateType() -- make sure correct tool is set
-	-- 	player1:updateSpriteImage()
-	-- 	if value then
-	-- 		if game.currentState ~= STATE_STAGE_PLAY then
-	-- 			currentStageIndex = stage.getNumStages() + 1
-	-- 			game:changeState(STATE_STAGE_PLAY)
-	-- 		end
-
-	-- 		local menuitem = menu:addMenuItem("Save Stage", function()
-	-- 			currentStage:saveToStageData(currentStageIndex)
-	-- 		end)
-	-- 		local menuitem = menu:addMenuItem("Reload Stage", function()
-	-- 			currentStage:loadFromStageData(currentStageIndex)
-	-- 		end)
-	-- 	end
-	-- end)
 end
 
 initGame()
