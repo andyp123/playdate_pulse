@@ -41,7 +41,7 @@ function player.new()
 	local sprite = gfx.sprite.new(player.playerImages:getImage(1))
 	sprite:moveTo(stage.kSpriteOffset, stage.kSpriteOffset)
 	sprite:add()
-	sprite:setZIndex(32000)
+	sprite:setZIndex(30000)
 
 	local a = {
 		x = 1,

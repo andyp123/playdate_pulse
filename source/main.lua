@@ -15,6 +15,7 @@ import "player"
 import "sound"
 import "titleScreen"
 import "levelSelect"
+import "menu"
 
 local gfx <const> = playdate.graphics
 
@@ -47,7 +48,7 @@ local transitionImageTable = gfx.imagetable.new("images/transition1")
 local transitionImage = gfx.image.new(400, 240)
 local transitionSprite = gfx.sprite.new(transitionImage)
 transitionSprite:add()
-transitionSprite:setZIndex(32100)
+transitionSprite:setZIndex(32767)
 transitionSprite:moveTo(200,120)
 transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
 
@@ -56,7 +57,7 @@ local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
 
 -- Fonts
 local font = gfx.font.new("fonts/Roobert-20-Medium")
-local numerals = gfx.font.new("fonts/Roobert-11-Medium-Numerals")
+local fontSmall = gfx.font.new("fonts/Roobert-11-Medium")
 gfx.setFont(font)
 
 -- Sounds
@@ -97,6 +98,34 @@ local player1 = player.new()
 local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
+-- menu test
+-- font, 260, 32, 12, 32000) -- 6 rows max
+-- fontSmall, 260, 22, 8, 32000) -- 10 rows max
+menu.new("TITLE_MENU", {
+	"Start Game",
+	"Level Select",
+	"High Scores",
+	"Settings"
+}, font, 260, 32, 12, 32000)
+
+menu.new("LEVELS_MENU", {
+	"Play Level",
+	"Edit Level",
+	"Delete Level"
+}, font, 260, 32, 12, 32000)
+
+menu.new("PAUSE_MENU", {
+	"Quit to Title",
+	"Restart Zone"
+}, font, 260, 32, 12, 32000)
+
+menu.new("EDIT_MENU", {
+	"Play Level",
+	"Save Level",
+	"Revert Level",
+	"Clear (Filled)",
+	"Clear (Empty)"
+}, font, 260, 32, 12, 32000)
 
 
 -------------------------------------------------------------------------------
@@ -263,6 +292,7 @@ function game:update()
 	local state = self.currentState
 	if state == STATE_TITLE then
 		self:updateTitle()
+
 	elseif state == STATE_STAGE_PLAY then
 		if not player1.editModeEnabled then
 			self:updateGame()
@@ -286,7 +316,7 @@ end
 
 function game:updateLevelSelect()
 	if game.timeInState <= deltaTimeSeconds then
-		levelSelect.drawToImage(bgImage, numerals)
+		levelSelect.drawToImage(bgImage, fontSmall)
 	end
 
 	levelSelect.update()
@@ -325,14 +355,21 @@ function game:updateTitle()
 		jitter:randomizeNextSampleIndex()
 	end
 
-	-- start the game when A button pressed
-	if playdate.buttonJustPressed(playdate.kButtonA) and not self:inTransition() then
-		game:changeState(STATE_STAGE_PLAY)
-	end
-
-	-- Level select if B pressed
-	if playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
-		game:changeState(STATE_LEVEL_SELECT)
+	-- menu update
+	if menu.isMenuActive("TITLE_MENU") then
+		local m = menu.activeMenu
+		local si = m:updateAndGetAnySelection()
+		if playdate.buttonJustPressed(playdate.kButtonA) then
+			if si == 1 then
+				game:changeState(STATE_STAGE_PLAY)
+			elseif si == 2 then
+				game:changeState(STATE_LEVEL_SELECT)
+			end
+		end
+	elseif not self:inTransition() then
+		if playdate.buttonJustPressed(playdate.kButtonA) then
+			menu.setActiveMenu("TITLE_MENU")
+		end
 	end
 end
 
