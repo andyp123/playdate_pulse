@@ -203,7 +203,7 @@ function player:tryMoveAndCollect(x, y)
 					-- play door open sound (gems only on gem collector stages?)
 				else
 					-- got all gems!
-					-- sound.play("ALL_GEMS")
+					sound.play("GET_ALL_GEMS")
 				end
 			else
 				sound.play("GET_GEM")

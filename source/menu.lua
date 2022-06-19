@@ -74,6 +74,7 @@ function menu.setActiveMenu(menuId)
 			m:setSelection(1)
 			m:setVisible(true)
 			menu.activeMenu = m
+			sound.play("MENU_MOVE")
 			return m
 		else
 			print(string.format("Error: Menu with id '%s' is not registered", menuId))
@@ -145,6 +146,7 @@ function menu:updateAndGetAnySelection(keepActive)
 
 	if playdate.buttonJustPressed(playdate.kButtonB) then
 		menu.setActiveMenu(nil)
+		sound.play("MENU_BACK")
 		return nil
 	end
 
@@ -152,6 +154,7 @@ function menu:updateAndGetAnySelection(keepActive)
 	if playdate.buttonJustPressed(playdate.kButtonDown) then self:moveSelection(1) end
 	if playdate.buttonJustPressed(playdate.kButtonA) then
 		if not keepActive then menu.setActiveMenu(nil) end
+		sound.play("MENU_SELECT")
 		return self.selectedIndex
 	end
 
