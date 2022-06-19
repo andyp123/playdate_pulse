@@ -114,7 +114,8 @@ menu.new("TITLE_MENU", {
 menu.new("LEVELS_MENU", {
 	"Play Level",
 	"Edit Level",
-	"Delete Level"
+	"Delete Level",
+	"Back to Title"
 }, font, 260, 32, 12, 32000)
 
 menu.new("PAUSE_MENU", {
@@ -128,7 +129,8 @@ menu.new("EDIT_MENU", {
 	"Save Level",
 	"Revert Level",
 	"Clear (Filled)",
-	"Clear (Empty)"
+	"Clear (Empty)",
+	"Quit to Title"
 }, font, 260, 32, 12, 32000)
 
 
@@ -327,32 +329,39 @@ function game:updateLevelSelect()
 	if menu.isMenuActive("LEVELS_MENU") then
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
-		if playdate.buttonJustPressed(playdate.kButtonA) then
-			if si == 1 or si == 2 then -- PLAY / EDIT
-				levelSelect.setCursorVisible(false)
-				currentStageIndex = levelSelect.selectedIndex
-				if si == 2 or currentStageIndex > stage.getNumStages() then
-					player1.editModeEnabled = true
-					player1:editModeUpdateType()
-				end
-				game:changeState(STATE_STAGE_PLAY)
-			elseif si == 3 then -- DELETE
-				stage.delete(levelSelect.selectedIndex)
-				levelSelect.drawToImage(bgImage, fontSmall)
-				gfx.sprite.redrawBackground()
-			end
+		if si == 1 or si == 2 then -- PLAY / EDIT
+			local isEdit = (si == 2)
+			self:levelSelectPlayOrEdit(isEdit)
+		elseif si == 3 then -- DELETE
+			stage.delete(levelSelect.selectedIndex)
+			levelSelect.drawToImage(bgImage, fontSmall)
+			gfx.sprite.redrawBackground()
+		elseif si == 4 then
+			game:changeState(STATE_TITLE)
 		end
 	elseif not self:inTransition() then
 		levelSelect.setCursorVisible(true)
 		levelSelect.update()
 
-		if playdate.buttonJustPressed(playdate.kButtonA) then
+		if playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("LEVELS_MENU")
 			levelSelect.setCursorVisible(false)
-		elseif playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
-			game:changeState(STATE_TITLE)
+		elseif playdate.buttonJustPressed(playdate.kButtonA) then
+			self:levelSelectPlayOrEdit()
+			sound.play("MENU_SELECT")
 		end
 	end
+end
+
+
+function game:levelSelectPlayOrEdit(isEdit)
+	levelSelect.setCursorVisible(false)
+	currentStageIndex = levelSelect.selectedIndex
+	if isEdit or currentStageIndex > stage.getNumStages() then
+		player1.editModeEnabled = true
+		player1:editModeUpdateType()
+	end
+	game:changeState(STATE_STAGE_PLAY)
 end
 
 
@@ -379,15 +388,15 @@ function game:updateTitle()
 	if menu.isMenuActive("TITLE_MENU") then
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
-		if playdate.buttonJustPressed(playdate.kButtonA) then
-			if si == 1 then
-				game:changeState(STATE_STAGE_PLAY)
-			elseif si == 2 then
-				game:changeState(STATE_LEVEL_SELECT)
-			end
+		if si == 1 then
+			game:changeState(STATE_STAGE_PLAY)
+		elseif si == 2 then
+			game:changeState(STATE_LEVEL_SELECT)
 		end
 	elseif not self:inTransition() then
 		if playdate.buttonJustPressed(playdate.kButtonA) then
+			game:changeState(STATE_STAGE_PLAY)
+		elseif playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("TITLE_MENU")
 		end
 	end
@@ -421,24 +430,54 @@ function game:updateGame()
 
 		player1:update()
 
-		if playdate.buttonJustPressed(playdate.kButtonA) then
+		if playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("PAUSE_MENU")
 		end
 	else
 		local si = pauseMenu:updateAndGetAnySelection()
-		if playdate.buttonJustPressed(playdate.kButtonA) then
-			if si == 3 then
-				currentStage:clear()
-				game:changeState(STATE_TITLE)
-			elseif si == 2 then
-				-- restart zone
-			end
+		if si == 3 then
+			currentStage:clear()
+			game:changeState(STATE_TITLE)
+		elseif si == 2 then
+			-- restart zone
 		end
 	end
 end
 
+
 function game:updateEditMode()
-	player1:update()
+	if self:inTransition() then return end
+
+	local editMenu = menu.getMenu("EDIT_MENU")
+	if not editMenu:isActive() then
+		player1:update()
+
+		if playdate.buttonJustPressed(playdate.kButtonB) then
+			menu.setActiveMenu("EDIT_MENU")
+		end
+	else
+		local si = editMenu:updateAndGetAnySelection()
+		if si == 1 then
+			-- "Play Level",
+		elseif si == 2 then
+			currentStage:saveToStageData(currentStageIndex)
+		elseif si == 3 then
+			currentStage:loadFromStageData(currentStageIndex)
+			currentStage:drawToImage()
+			gfx.sprite.redrawBackground()
+		elseif si == 4 then
+			currentStage:clear()
+			currentStage:drawToImage()
+			gfx.sprite.redrawBackground()
+		elseif si == 5 then
+			currentStage:clear(cellTypes.EMPTY)
+			currentStage:drawToImage()
+			gfx.sprite.redrawBackground()
+		elseif si == 6 then
+			currentStage:clear()
+			game:changeState(STATE_TITLE)
+		end
+	end
 end
 
 
@@ -510,25 +549,25 @@ function initGame()
 	)
 
 	-- add menu option
-	local menu = playdate.getSystemMenu()
-	local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
-		player1.editModeEnabled = not player1.editModeEnabled
-		player1:editModeUpdateType() -- make sure correct tool is set
-		player1:updateSpriteImage()
-		if value then
-			if game.currentState ~= STATE_STAGE_PLAY then
-				currentStageIndex = stage.getNumStages() + 1
-				game:changeState(STATE_STAGE_PLAY)
-			end
+	-- local menu = playdate.getSystemMenu()
+	-- local editModeToggle, error = menu:addCheckmarkMenuItem("Edit Mode", false, function(value)
+	-- 	player1.editModeEnabled = not player1.editModeEnabled
+	-- 	player1:editModeUpdateType() -- make sure correct tool is set
+	-- 	player1:updateSpriteImage()
+	-- 	if value then
+	-- 		if game.currentState ~= STATE_STAGE_PLAY then
+	-- 			currentStageIndex = stage.getNumStages() + 1
+	-- 			game:changeState(STATE_STAGE_PLAY)
+	-- 		end
 
-			local menuitem = menu:addMenuItem("Save Stage", function()
-				currentStage:saveToStageData(currentStageIndex)
-			end)
-			local menuitem = menu:addMenuItem("Reload Stage", function()
-				currentStage:loadFromStageData(currentStageIndex)
-			end)
-		end
-	end)
+	-- 		local menuitem = menu:addMenuItem("Save Stage", function()
+	-- 			currentStage:saveToStageData(currentStageIndex)
+	-- 		end)
+	-- 		local menuitem = menu:addMenuItem("Reload Stage", function()
+	-- 			currentStage:loadFromStageData(currentStageIndex)
+	-- 		end)
+	-- 	end
+	-- end)
 end
 
 initGame()
