@@ -334,7 +334,9 @@ function game:updateLevelSelect()
 				end
 				game:changeState(STATE_STAGE_PLAY)
 			elseif si == 3 then -- DELETE
-				print("delete")
+				stage.delete(levelSelect.selectedIndex)
+				levelSelect.drawToImage(bgImage, fontSmall)
+				gfx.sprite.redrawBackground()
 			end
 		end
 	elseif not self:inTransition() then

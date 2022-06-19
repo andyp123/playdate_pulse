@@ -3,6 +3,9 @@ import "CoreLibs/object"
 import "CoreLibs/graphics"
 import "CoreLibs/sprites"
 
+-- Pulse
+import "sound"
+
 menu = {}
 menu.__index = menu
 
@@ -68,6 +71,7 @@ function menu.setActiveMenu(menuId)
 	if menuId ~= nil then
 		local m = menu.menus[menuId]
 		if m ~= nil then
+			m:setSelection(1)
 			m:setVisible(true)
 			menu.activeMenu = m
 			return m
@@ -114,11 +118,12 @@ end
 
 
 function menu:moveSelection(offset)
-	self:setSelection(self.selectedIndex + offset)
+	self:setSelection(self.selectedIndex + offset, true)
 end
 
 
-function menu:setSelection(newIndex)
+function menu:setSelection(newIndex, playSound)
+	local originalIndex = self.selectedIndex
 	local numItems = #self.items
 	self.selectedIndex = clamp(newIndex, 1, numItems)
 
@@ -127,6 +132,10 @@ function menu:setSelection(newIndex)
 	local yOffset = math.floor((self.selectedIndex - 0.5) * self.rowHeight)
 
 	self.selectionSprite:moveTo(px, py - height // 2 + yOffset)
+
+	if playSound and originalIndex ~= self.selectedIndex then
+		sound.play("MENU_MOVE")
+	end
 end
 
 

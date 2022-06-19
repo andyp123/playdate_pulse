@@ -314,6 +314,15 @@ function stage.saveStagesToFile(filename)
 end
 
 
+function stage.delete(stageIndex)
+	if stage.stageData ~= nil and stageIndex >= 1 and stageIndex <= stage.getNumStages() then
+		print(string.format("Deleting stage '%d'", stageIndex))
+		table.remove(stage.stageData, stageIndex)
+		stage.saveStagesToFile(gameStageFilename)
+	end
+end
+
+
 -- Get and set functions do not link tables from stageData to avoid accidental modification
 function stage:setData(fromData)
 	if fromData and fromData.cells then
