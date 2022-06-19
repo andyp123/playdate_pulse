@@ -66,7 +66,7 @@ function player:reset()
 	-- self.lives = 1
 	self.inputRotation = 0
 	self.frame = 1
-	self.sprite:setImage(self.playerImages:getImage(1))
+	self:updateSpriteImage()
 end
 
 

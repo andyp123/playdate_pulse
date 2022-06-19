@@ -100,7 +100,7 @@ function titleScreen.drawToImage(image, jitter, jitterScale)
 	titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale, 4, false)
 
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for options", 200, 140, kTextAlignment.center)
+	gfx.drawTextAligned("Press Ⓐ to begin", 200, 140, kTextAlignment.center)
 
 	gfx.unlockFocus()
 end

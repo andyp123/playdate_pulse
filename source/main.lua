@@ -115,8 +115,9 @@ menu.new("LEVELS_MENU", {
 }, font, 260, 32, 12, 32000)
 
 menu.new("PAUSE_MENU", {
-	"Quit to Title",
-	"Restart Zone"
+	"Resume",
+	"Restart Zone",
+	"Quit to Title"
 }, font, 260, 32, 12, 32000)
 
 menu.new("EDIT_MENU", {
@@ -319,40 +320,54 @@ function game:updateLevelSelect()
 		levelSelect.drawToImage(bgImage, fontSmall)
 	end
 
-	levelSelect.update()
-
-	-- Return to title screen if B pressed
-	if playdate.buttonJustPressed(playdate.kButtonA) and not self:inTransition() then
-		levelSelect.setCursorVisible(false)
-		currentStageIndex = levelSelect.selectedIndex
-		if currentStageIndex > stage.getNumStages() then
-			player1.editModeEnabled = true
-			player1:editModeUpdateType()
-			player1:updateSpriteImage()
+	-- menu update
+	if menu.isMenuActive("LEVELS_MENU") then
+		local m = menu.activeMenu
+		local si = m:updateAndGetAnySelection()
+		if playdate.buttonJustPressed(playdate.kButtonA) then
+			if si == 1 or si == 2 then -- PLAY / EDIT
+				levelSelect.setCursorVisible(false)
+				currentStageIndex = levelSelect.selectedIndex
+				if si == 2 or currentStageIndex > stage.getNumStages() then
+					player1.editModeEnabled = true
+					player1:editModeUpdateType()
+				end
+				game:changeState(STATE_STAGE_PLAY)
+			elseif si == 3 then -- DELETE
+				print("delete")
+			end
 		end
-		game:changeState(STATE_STAGE_PLAY)
-	elseif playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
-		game:changeState(STATE_TITLE)
+	elseif not self:inTransition() then
+		levelSelect.setCursorVisible(true)
+		levelSelect.update()
+
+		if playdate.buttonJustPressed(playdate.kButtonA) then
+			menu.setActiveMenu("LEVELS_MENU")
+			levelSelect.setCursorVisible(false)
+		elseif playdate.buttonJustPressed(playdate.kButtonB) and not self:inTransition() then
+			game:changeState(STATE_TITLE)
+		end
 	end
 end
 
 
 function game:updateTitle()
 	-- draw and update title screen
-	local prevTime = totalTimeSeconds - deltaTimeSeconds
-	local t = 1 - totalTimeSeconds % 1
-	local tlim = 0.5
-	jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
-	if t >= tlim then
-		titleScreen.drawToImage(bgImage, jitter, jitterScale)
-		-- only redraw the whole screen after transition
-		if game.timeInState > deltaTimeSeconds then
-			gfx.sprite.addDirtyRect(0,0,400,100)
+	if game.timeInState <= deltaTimeSeconds or menu.activeMenu == nil then
+		local t = 1 - totalTimeSeconds % 1
+		local tlim = 0.5
+		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
+		if t >= tlim then
+			titleScreen.drawToImage(bgImage, jitter, jitterScale)
+			-- only redraw the whole screen after transition
+			if game.timeInState > deltaTimeSeconds then
+				gfx.sprite.addDirtyRect(0,0,400,100)
+			else
+				gfx.sprite.redrawBackground()
+			end
 		else
-			gfx.sprite.redrawBackground()
+			jitter:randomizeNextSampleIndex()
 		end
-	else
-		jitter:randomizeNextSampleIndex()
 	end
 
 	-- menu update
@@ -375,7 +390,10 @@ end
 
 
 function game:updateGame()
-	if not self:inTransition() then
+	if self:inTransition() then return end
+
+	local pauseMenu = menu.getMenu("PAUSE_MENU")
+	if not pauseMenu:isActive() then
 		local prevTime = self.timeRemaining
 
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
@@ -397,6 +415,20 @@ function game:updateGame()
 		end
 
 		player1:update()
+
+		if playdate.buttonJustPressed(playdate.kButtonA) then
+			menu.setActiveMenu("PAUSE_MENU")
+		end
+	else
+		local si = pauseMenu:updateAndGetAnySelection()
+		if playdate.buttonJustPressed(playdate.kButtonA) then
+			if si == 3 then
+				currentStage:clear()
+				game:changeState(STATE_TITLE)
+			elseif si == 2 then
+				-- restart zone
+			end
+		end
 	end
 end
 

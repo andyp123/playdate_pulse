@@ -78,6 +78,16 @@ function menu.setActiveMenu(menuId)
 end
 
 
+function menu.getMenu(menuId)
+	local m = menu.menus[menuId]
+	if m ~= nil then
+		return m
+	else
+		print(string.format("Error: Menu with id '%s' is not registered", menuId))
+	end
+end
+
+
 function menu.isMenuActive(menuId)
 	local m = menu.menus[menuId]
 	if m ~= nil then
