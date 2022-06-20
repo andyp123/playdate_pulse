@@ -118,7 +118,8 @@ function player:update()
 			if mx ~= 0 and my ~= 0 then
 				my = 0
 			end
-			self:tryMove(mx, my)
+			self:tryMovePassBlock(self.x, self.y, mx, my)
+			-- self:tryMove(mx, my)
 		end
 	else
 		self:editModeUpdate(mx, my)
@@ -126,13 +127,33 @@ function player:update()
 end
 
 
-function player:tryMove(mx, my)
-	local x, y = self.x + mx, self.y + my
-	if self:tryMoveAndCollect(x, y) then
-		self.x = x
-		self.y = y
-		self.sprite:moveBy(mx * stage.kCellSize, my * stage.kCellSize)
-		self:updateSpriteImage()
+
+ -- Has some special recursive logic to handle teleport move blocks
+function player:tryMovePassBlock(x, y, mx, my, blocksPassed)
+	blocksPassed = blocksPassed or 0
+	local nx, ny = x + mx, y + my
+
+	if stage.isValidIndex(nx, ny) then
+		local i = xy2i(nx, ny, stage.kWidth)
+		local typeId = self.currentStage.cells[i]
+
+		if my == -1 and typeId == cellTypes.PASSBLOCK_UP then
+			self:tryMovePassBlock(nx, ny, 0, -1, blocksPassed + 1)
+		elseif mx == 1 and typeId == cellTypes.PASSBLOCK_RIGHT then
+			self:tryMovePassBlock(nx, ny, 1, 0, blocksPassed + 1)
+		elseif my == 1 and typeId == cellTypes.PASSBLOCK_DOWN then
+			self:tryMovePassBlock(nx, ny, 0, 1, blocksPassed + 1)
+		elseif mx == -1 and typeId == cellTypes.PASSBLOCK_LEFT then
+			self:tryMovePassBlock(nx, ny, -1, 0, blocksPassed + 1)
+		else
+			if self:tryMoveAndCollect(nx, ny) then
+				self:moveTo(nx, ny)
+				self:updateSpriteImage()
+				if blocksPassed > 0 then
+					sound.play("MENU_SELECT")
+				end
+			end
+		end
 	end
 end
 
@@ -142,7 +163,9 @@ function player:tryMoveAndCollect(x, y)
 		local i = xy2i(x, y, stage.kWidth)
 		local typeId = self.currentStage.cells[i]
 
-		if typeId == cellTypes.SOLID or typeId == cellTypes.BLOCK_CLOSED then
+		if typeId == cellTypes.SOLID or typeId == cellTypes.BLOCK_CLOSED or 
+			typeId == cellTypes.PASSBLOCK_UP or typeId == cellTypes.PASSBLOCK_RIGHT or
+			typeId == cellTypes.PASSBLOCK_DOWN or typeId == cellTypes.PASSBLOCK_LEFT then
 			sound.play("MOVE_FAIL")
 			return false
 		elseif typeId == cellTypes.GEM_DOOR then

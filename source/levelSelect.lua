@@ -89,17 +89,44 @@ function levelSelect.drawToImage(image, font)
 
 	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
 
+	local isEmpty = levelSelect.isStageEmpty
+
 	local numStages = clamp(stage.getNumStages(), 0, numCells)
 	local cnt = clamp(numStages + 1, 1, numCells)
 	for i = 1, cnt do
 		local x, y = i2xy0(i, width)
 		local xp = x * size + xOffset
 		local yp = y * size + yOffset
-		-- tileImages:drawImage(1, xp, yp)
+
 		local text = string.format("%d", i)
+		-- FIXME: Probably slow and needs removing
+		if isEmpty(i) then
+			text = "+"
+		end
 		if i > numStages then text = "+" end
 		font:drawTextAligned(text, xp, yp, kTextAlignment.center)
 	end
 
 	gfx.unlockFocus()
+end
+
+
+
+-- FIXME: This is just used to help me see which levels are empty
+-- Should probably be removed
+function levelSelect.isStageEmpty(stageIndex)
+	if stageIndex >= 1 and stageIndex <= stage.getNumStages() then
+		local stageData = stage.stageData
+		local cells = stageData[stageIndex].cells
+		local cellValue = cells[1]
+		local cnt = stage.kNumCells
+
+		for i = 2, cnt do
+			if cells[i] ~= cellValue then
+				return false
+			end
+		end
+
+		return true
+	end
 end
