@@ -50,7 +50,7 @@ function player.new()
 		lives = 1,
 		inputRotation = 0, -- 0-3, corresponding to 0, 90, 180, 270
 		sprite = sprite,
-		frame = 1,
+		frame = 0, -- 0 or 1
 		editModeEnabled = false,
 		editModeTypeId = cellTypes.SOLID
 	}
@@ -65,7 +65,7 @@ function player:reset()
 	self.keys = 0
 	-- self.lives = 1
 	self.inputRotation = 0
-	self.frame = 1
+	self.frame = 0
 	self:updateSpriteImage()
 end
 
@@ -213,7 +213,7 @@ function player:tryMoveAndCollect(x, y)
 			sound.play("PRESS_SWITCH")
 		elseif typeId == cellTypes.HEART then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			self.lives += 1 --clamp(self.lives + 1, 1, 3)
+			self.lives  = 2 -- 1 life means game over on death, 2 is another chance --+= 1 --clamp(self.lives + 1, 1, 3)
 			sound.play("GET_HEART")
 		elseif typeId == cellTypes.GEM then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
@@ -295,6 +295,20 @@ function player:editModeUpdateType()
 end
 
 
+-- function player:updateSpriteImage()
+-- 	if self.editModeEnabled then
+-- 		self.sprite:setImage(self.actorImages:getImage(self.editModeTypeId))
+-- 	else
+-- 		if self.keys > 0 then
+-- 			self.sprite:setImage(self.actorImages:getImage(cellTypes.KEY))
+-- 		else
+-- 			self.frame = math.abs(self.frame - 1)
+-- 			if self.frame == 1 then self.sprite:setImage(self.playerImages:getImage(1))
+-- 			else self.sprite:setImage(self.playerImages:getImage(2)) end
+-- 		end
+-- 	end
+-- end
+
 function player:updateSpriteImage()
 	if self.editModeEnabled then
 		self.sprite:setImage(self.actorImages:getImage(self.editModeTypeId))
@@ -303,8 +317,10 @@ function player:updateSpriteImage()
 			self.sprite:setImage(self.actorImages:getImage(cellTypes.KEY))
 		else
 			self.frame = math.abs(self.frame - 1)
-			if self.frame == 1 then self.sprite:setImage(self.playerImages:getImage(1))
-			else self.sprite:setImage(self.playerImages:getImage(2)) end
+			local frame = self.frame + 1
+			if self.lives >= 2 then frame += 2 end
+			print(frame)
+			self.sprite:setImage(self.playerImages:getImage(frame))
 		end
 	end
 end
