@@ -241,6 +241,7 @@ function player:tryMoveAndCollect(x, y)
 			end
 		elseif typeId == cellTypes.EXIT then
 			if self.reachExitCallback ~= nil then
+				self:setVisible(false)
 				self.reachExitCallback()
 			end
 			return true
@@ -295,20 +296,6 @@ function player:editModeUpdateType()
 end
 
 
--- function player:updateSpriteImage()
--- 	if self.editModeEnabled then
--- 		self.sprite:setImage(self.actorImages:getImage(self.editModeTypeId))
--- 	else
--- 		if self.keys > 0 then
--- 			self.sprite:setImage(self.actorImages:getImage(cellTypes.KEY))
--- 		else
--- 			self.frame = math.abs(self.frame - 1)
--- 			if self.frame == 1 then self.sprite:setImage(self.playerImages:getImage(1))
--- 			else self.sprite:setImage(self.playerImages:getImage(2)) end
--- 		end
--- 	end
--- end
-
 function player:updateSpriteImage()
 	if self.editModeEnabled then
 		self.sprite:setImage(self.actorImages:getImage(self.editModeTypeId))
@@ -319,7 +306,6 @@ function player:updateSpriteImage()
 			self.frame = math.abs(self.frame - 1)
 			local frame = self.frame + 1
 			if self.lives >= 2 then frame += 2 end
-			print(frame)
 			self.sprite:setImage(self.playerImages:getImage(frame))
 		end
 	end
