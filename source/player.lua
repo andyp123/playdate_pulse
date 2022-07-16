@@ -43,6 +43,12 @@ function player.new()
 	sprite:add()
 	sprite:setZIndex(30000)
 
+	local editModeBGSprite = gfx.sprite.new(gfx.image.new(40, 40, gfx.kColorWhite))
+	editModeBGSprite:setZIndex(sprite:getZIndex() + 1)
+	editModeBGSprite:setVisible(false)
+	editModeBGSprite:setImageDrawMode(gfx.kDrawModeXOR)
+	editModeBGSprite:add()
+
 	local a = {
 		x = 1,
 		y = 1,
@@ -52,7 +58,8 @@ function player.new()
 		sprite = sprite,
 		frame = 0, -- 0 or 1
 		editModeEnabled = false,
-		editModeTypeId = cellTypes.SOLID
+		editModeTypeId = cellTypes.SOLID,
+		editModeBGSprite = editModeBGSprite
 	}
 
 	setmetatable(a, player)
@@ -72,6 +79,7 @@ end
 
 function player:setVisible(isVisible)
 	self.sprite:setVisible(isVisible)
+	self.editModeBGSprite:setVisible(self.editModeEnabled)
 end
 
 
@@ -99,6 +107,7 @@ function player:moveTo(x, y)
 		local posx = (x - 1) * stage.kCellSize + stage.kSpriteOffset
 		local posy = (y - 1) * stage.kCellSize + stage.kSpriteOffset
 		self.sprite:moveTo(posx, posy)
+		self.editModeBGSprite:moveTo(posx, posy)
 	end
 end
 
@@ -285,6 +294,7 @@ function player:editModeTryMove(mx, my)
 		self.x += mx
 		self.y += my
 		self.sprite:moveBy(mx * stage.kCellSize, my * stage.kCellSize)
+		self.editModeBGSprite:moveTo(self.sprite:getPosition())
 		return true
 	end
 	return false
@@ -304,6 +314,7 @@ end
 function player:updateSpriteImage()
 	if self.editModeEnabled then
 		self.sprite:setImage(self.actorImages:getImage(self.editModeTypeId))
+		self.editModeBGSprite:setVisible(true)
 	else
 		if self.keys > 0 then
 			self.sprite:setImage(self.actorImages:getImage(cellTypes.KEY))
@@ -313,5 +324,6 @@ function player:updateSpriteImage()
 			if self.lives >= 2 then frame += 2 end
 			self.sprite:setImage(self.playerImages:getImage(frame))
 		end
+		self.editModeBGSprite:setVisible(false)
 	end
 end
