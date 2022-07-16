@@ -68,11 +68,12 @@ sound.loadSamples({
 	GET_CLOCK = "sounds/get_clock",
 	USE_KEY = "sounds/use_key",
 	GET_ROTATE_L = "sounds/get_rotate",
-	GET_ROTATE_R = "sounds/get_rotate",
+	GET_ROTATE_R = "sounds/get_rotate", -- TODO: Make sound
+	GET_ROTATE_180 = "sounds/get_rotate", -- TODO: Make sound
 	PRESS_SWITCH = "sounds/block_move",
 	GET_HEART = "sounds/get_heart",
 	GET_GEM = "sounds/get_gem",
-	GET_ALL_GEMS = "sounds/get_all_gems",
+	GET_ALL_GEMS = "sounds/get_all_gems", -- TODO: Make sound
 	TIME_TICK = "sounds/time_tick",
 	TIME_OVER = "sounds/time_over",
 	MINE_EXPLODE = "sounds/mine_explode",
