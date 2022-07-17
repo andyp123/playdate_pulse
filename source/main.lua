@@ -246,6 +246,7 @@ end
 -- GAME UPDATE FUNCTIONS ------------------------------------------------------
 -------------------------------------------------------------------------------
 function game:handleStateEntry()
+	currentStage:clear()
 	player1:setVisible(false)
 	levelSelect.setCursorVisible(false)
 
@@ -286,7 +287,7 @@ function game:endStage(failed)
 		-- reload the level
 		self:changeState(STATE_STAGE_PLAY)
 	elseif (failed and player1.lives <= 0) or currentStageIndex + 1 > numStages then
-		currentStage:clear()
+		-- currentStage:clear()
 		self:changeState(STATE_TITLE)
 		currentStageIndex = 1
 	else
