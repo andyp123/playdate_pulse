@@ -2,16 +2,18 @@ PULSE TODO
 ----------
 
 Immediate Tasks:
-x Flip controls item (rotate 180) - much easier to understand than 90 degree increments. Rotation can be used from a later stage instead
 - Work on how the level editor is treated. Edit, play, reset. Should be separate to main game
-x stage items shouldn't clear until end of fade out
 - When in editor mode, player sprite should use black as transparent, and maybe flash inverted/invisible
 
 - In between stage screen showing stage #, time taken on prev stage, total time etc. Should be 2 seconds or require button press to advance
 - Game over screen (should perhaps use same code as above, but different state to show game over)
 
+- Need a way to emphasize the last 3 seconds or so. Perhaps use sound, but visual effect helpful
 - Need a better effect when time runs out
-- Need a way to show last 3 seconds or so. Perhaps use sound, but visual effect helpful
+
+Done
+x Stage items shouldn't clear until end of fade out
+x Flip controls item (rotate 180) - much easier to understand than 90 degree increments. Rotation can be used from a later stage instead
 
 
 

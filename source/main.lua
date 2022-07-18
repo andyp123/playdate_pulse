@@ -86,6 +86,15 @@ sound.loadSamples({
 	EDIT_TILE = "sounds/edit_tile"
 })
 
+-- TEST
+local channel = sound.getChannel("PULSE")
+local effect = playdate.sound.overdrive.new()
+effect:setMix(0)
+effect:setGain(5)
+channel:addEffect(effect)
+sound.addSampleToChannel("TIME_TICK", "PULSE")
+
+
 -- Stage
 local gameStageFileName <const> = "data/gamestages"
 local userStageFileName <const> = "data/userstages"
