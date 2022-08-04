@@ -15,9 +15,15 @@ Done
 x Stage items shouldn't clear until end of fade out
 x Flip controls item (rotate 180) - much easier to understand than 90 degree increments. Rotation can be used from a later stage instead
 
+ENTRY POINT:
+title > game: play from start, monitor stage scores
+   - can select to start at the beginning of any stage group (12 stages)
+   - clearing a 12 stage group will unlock the next group entry and save time if < current record
+   - time is measured from the stage group entry until the end of the last stage cleared
+   - game clear time is only saved when starting from stage 1
+stage select > game: play only selected stage, return to stage select, no score monitoring
+edit stage > game: temp store stage data, play stage, return to edit stage, restore saved data
 
-
-- Ally's idea: use crank to rotate key to specific orientation
 - level select menu
 - user stage editing
 - menu system and menus
@@ -32,7 +38,6 @@ x Flip controls item (rotate 180) - much easier to understand than 90 degree inc
   - high scores screen
 - game over state
 - game clear state
-- 12 stages to start with
 - think about modifications to gameplay... (5-7 modes?)
   - default controls
   - crank forward controls (hold direction and use crank to move forward)
@@ -42,10 +47,9 @@ x Flip controls item (rotate 180) - much easier to understand than 90 degree inc
   - collector (get every special item/diamond)
   - no way back (blocks previously occupied are filled)
   - limited moves (each move is one second/pulse)
-- move input from player to main loop
-- move edit state from player to game
-- input to player only during game and editor states
 - perhaps move more stuff into the global.lua file?
+- Ally's idea: use crank to rotate key to specific orientation
+- use the crank for anything?
 
 Sounds Needed:
 The current sounds are taken from the old web version of this game, and were

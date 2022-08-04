@@ -507,14 +507,6 @@ function playdate.update()
 
 	gfx.sprite.update()
 	playdate.timer.updateTimers()
-
-	-- seem to have issues if I do this before anything else...
-	-- local timeString = string.format("%.3f", game.timeRemaining)
-	-- local px,py = player1.sprite:getPosition()
-	-- local currentDrawMode = gfx.getImageDrawMode()
-	-- gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	-- gfx.drawText(timeString, px+16, py-8)
-	-- gfx.setImageDrawMode(currentDrawMode)
 end
 
 

@@ -16,6 +16,7 @@ which are unlocked only once the player clears the previous row (?)
 	DOOR
 	KEY
 	CLOCK
+	ROTATE_180 - flip controls (easier than rotate)
 	ROTATE_LEFT - rotate controls
 	ROTATE_RIGHT
 	BLOCK_CLOSED
@@ -68,30 +69,3 @@ Simple levels:
 5
 6
 7 - everything no restrictions
-
-
-1 - ENTRY (movement only)
-2 - movement within time (longer stage with clock powerup)
-3 - locked door with key
-4 - more difficult locked door stage
-5 - two doors block exit (se)
-6
-7
-8
-9
-10
-11
-12
-
-13 - ENTRY (mechanical)
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
