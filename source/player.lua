@@ -43,10 +43,12 @@ function player.new()
 	sprite:add()
 	sprite:setZIndex(30000)
 
-	local editModeBGSprite = gfx.sprite.new(gfx.image.new(40, 40, gfx.kColorWhite))
-	editModeBGSprite:setZIndex(sprite:getZIndex() + 1)
+	-- ideally want 40, 40, +1 z and kDrawModeXOR, but seems to cause weird
+	-- problems refreshing the player sprite when it changes, unless it also moves
+	local editModeBGSprite = gfx.sprite.new(gfx.image.new(24, 24, gfx.kColorBlack))
+	editModeBGSprite:setZIndex(sprite:getZIndex() - 1)
 	editModeBGSprite:setVisible(false)
-	editModeBGSprite:setImageDrawMode(gfx.kDrawModeXOR)
+	-- editModeBGSprite:setImageDrawMode(gfx.kDrawModeXOR)
 	editModeBGSprite:add()
 
 	local a = {
@@ -136,7 +138,6 @@ function player:update()
 end
 
 
-
  -- Has some special recursive logic to handle teleport move blocks
 function player:tryMovePassBlock(x, y, mx, my, blocksPassed)
 	blocksPassed = blocksPassed or 0
@@ -163,6 +164,8 @@ function player:tryMovePassBlock(x, y, mx, my, blocksPassed)
 				end
 			end
 		end
+	else
+		sound.play("MOVE_FAIL")
 	end
 end
 
@@ -315,6 +318,8 @@ function player:updateSpriteImage()
 	if self.editModeEnabled then
 		self.sprite:setImage(self.actorImages:getImage(self.editModeTypeId))
 		self.editModeBGSprite:setVisible(true)
+		-- local rect = self.editModeBGSprite:getBoundsRect() -- attempt to fix flickering
+		-- gfx.sprite.addDirtyRect(rect.x, rect.y, rect.width, rect.height)
 	else
 		if self.keys > 0 then
 			self.sprite:setImage(self.actorImages:getImage(cellTypes.KEY))
