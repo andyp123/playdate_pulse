@@ -55,7 +55,7 @@ function player.new()
 		x = 1,
 		y = 1,
 		keys = 0,
-		lives = 1,
+		lives = 0,
 		inputRotation = 0, -- 0-3, corresponding to 0, 90, 180, 270
 		sprite = sprite,
 		frame = 0, -- 0 or 1
@@ -72,7 +72,7 @@ end
 function player:reset()
 	self.sprite:setVisible(true)
 	self.keys = 0
-	-- self.lives = 1
+	-- self.lives = 0
 	self.inputRotation = 0
 	self.frame = 0
 	self:updateSpriteImage()
@@ -230,7 +230,7 @@ function player:tryMoveAndCollect(x, y)
 			sound.play("PRESS_SWITCH")
 		elseif typeId == cellTypes.HEART then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			self.lives  = 2 -- 1 life means game over on death, 2 is another chance --+= 1 --clamp(self.lives + 1, 1, 3)
+			self.lives  = 1 -- 0 : game over on death, 1 : repeat stage
 			sound.play("GET_HEART")
 		elseif typeId == cellTypes.GEM then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
@@ -250,7 +250,6 @@ function player:tryMoveAndCollect(x, y)
 			end
 		elseif typeId == cellTypes.MINE then
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			-- self.lives -= 1 -- if lives < 1 then game over
 			sound.play("MINE_EXPLODE")
 			self:setVisible(false)
 			if self.deathCallback ~= nil then
@@ -326,7 +325,7 @@ function player:updateSpriteImage()
 		else
 			self.frame = math.abs(self.frame - 1)
 			local frame = self.frame + 1
-			if self.lives >= 2 then frame += 2 end
+			if self.lives > 0 then frame += 2 end
 			self.sprite:setImage(self.playerImages:getImage(frame))
 		end
 		self.editModeBGSprite:setVisible(false)

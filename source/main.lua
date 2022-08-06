@@ -16,17 +16,13 @@ import "sound"
 import "titleScreen"
 import "levelSelect"
 import "menu"
+import "intermission"
 
 local gfx <const> = playdate.graphics
 
 -- constants from stage
 local STAGE_WIDTH <const> = stage.kWidth
 local STAGE_HEIGHT <const> = stage.kHeight
--- local STAGE_NUM_CELLS <const> = stage.kNumCells
--- local STAGE_CELLSIZE <const> = stage.kCellSize
--- local SCREEN_OFFSET <const> = stage.kScreenOffset
--- local SPRITE_OFFSET <const> = stage.kSpriteOffset
-
 local cellTypes <const> = stage.cellTypes
 
 -- state
@@ -108,7 +104,6 @@ stage.drawTarget = bgImage
 player.setResources(currentStage, playerImageTable, spriteImageTable)
 local player1 = player.new()
 
-
 -- time
 local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
@@ -145,6 +140,20 @@ menu.new("EDIT_MENU", {
 }, font, 260, 32, 12, 32000)
 
 
+-- Helper function for input check
+function anyButtonJustPressed()
+	if playdate.buttonJustPressed(playdate.kButtonA) or
+	  playdate.buttonJustPressed(playdate.kButtonB) or
+	  playdate.buttonJustPressed(playdate.kButtonLeft) or
+	  playdate.buttonJustPressed(playdate.kButtonRight) or
+	  playdate.buttonJustPressed(playdate.kButtonUp) or
+	  playdate.buttonJustPressed(playdate.kButtonDown) then
+	  	return true
+	end
+	return false
+end
+
+
 -------------------------------------------------------------------------------
 -- GAME -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -157,8 +166,32 @@ game.transitionEasingType = playdate.easingFunctions.inOutQuad
 game.transitionNextState = -1 -- if a transition has ended and this is > 0, it will change state and start another transition
 game.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 1.0, 0.0, game.transitionEasingType)
 -- game state
-game.inPlay = false
-game.timeRemaining = 10
+game.timeRemaining = 10.0
+game.totalTimeElapsed = 0.0
+game.startStageId = 1
+game.livesUsed = 0
+
+
+function game:getPlayData()
+	local playData = {
+		totalTime = self.totalTimeElapsed,
+		startStage = self.startStageId,
+		currentStage = currentStageIndex,
+		livesRemaining = player1.lives,
+		livesUsed = self.livesUsed
+	}
+	return playData
+end
+
+
+function game:resetPlayData()
+	-- player1.reset()
+	player1.lives = 0
+	self.timeRemaining = 10.0
+	self.totalTimeElapsed = 0.0
+	self.startStageId = 1
+	self.livesUsed = 0
+end
 
 
 function game:addTime(seconds)
@@ -177,11 +210,6 @@ end
 
 function game:changeState(state, skipFadeOut)
 	game.transitionNextState = state
-
-	-- hack for player lives (make sure to reset to 1 unless continuing a game)
-	if state == STATE_STAGE_PLAY and game.currentState ~= STATE_STAGE_PLAY then
-		player1.lives = 1
-	end
 
 	if skipFadeOut then
 		self:enterNextState()
@@ -267,41 +295,51 @@ function game:handleStateEntry()
 		titleScreen.drawToImage(bgImage, jitter, 0)
 		player1.editModeEnabled = false
 		currentStageIndex = 1
+		self:resetPlayData() -- make sure previous session data is cleared
 	elseif state == STATE_STAGE_PLAY then
 		player1:reset()
 		loadStage(currentStageIndex)
 		self.timeRemaining = currentStage.time
 		gfx.sprite.redrawBackground()
 	elseif state == STATE_LEVEL_SELECT then
+		levelSelect.drawToImage(bgImage, fontSmall)
 		levelSelect.setCursorVisible(true)
+	elseif state == STATE_STAGE_CLEAR then
+		local playData = self:getPlayData()
+		intermission.drawToImage(bgImage, font, playData)
 	end
 end
 
 
 function game:endStage(failed)
+	local numStages = stage.getNumStages()
 	if failed then
 		if self.timeRemaining > 0 then
 			-- player died
 		else
 			sound.play("TIME_OVER")
 		end
-		player1.lives -= 1
+
+		if player1.lives > 0 then
+			-- reload the level
+			player1.lives = 0
+			self.livesUsed += 1
+			self:changeState(STATE_STAGE_PLAY)
+		else
+			-- TODO: STATE_GAME_OVER
+			self:changeState(STATE_TITLE)
+			currentStageIndex = 1
+		end
 	else
 		sound.play("STAGE_CLEAR")
-	end
-	-- game.inPlay = false
-
-	local numStages = stage.getNumStages()
-	if failed and player1.lives > 0 then
-		-- reload the level
-		self:changeState(STATE_STAGE_PLAY)
-	elseif (failed and player1.lives <= 0) or currentStageIndex + 1 > numStages then
-		-- currentStage:clear()
-		self:changeState(STATE_TITLE)
-		currentStageIndex = 1
-	else
-		currentStageIndex += 1
-		self:changeState(STATE_STAGE_PLAY)
+		if currentStageIndex + 1 > numStages then
+			-- TODO: STATE_GAME_CLEAR
+			self:changeState(STATE_TITLE)
+			currentStageIndex = 1
+		else
+			currentStageIndex += 1
+			self:changeState(STATE_STAGE_CLEAR)
+		end
 	end
 end
 
@@ -320,7 +358,7 @@ function game:update()
 			self:updateEditMode()
 		end
 	elseif state == STATE_STAGE_CLEAR then
-		-- play stage clear anim, advance stage
+		self:updateIntermission()
 	elseif state == STATE_STAGE_FAIL then
 		-- play stage fail anim
 	elseif state == STATE_GAME_CLEAR then
@@ -334,11 +372,27 @@ function game:update()
 end
 
 
-function game:updateLevelSelect()
-	if game.timeInState <= deltaTimeSeconds then
-		levelSelect.drawToImage(bgImage, fontSmall)
-	end
+function game:updateIntermission()
+	-- STATE_STAGE_CLEAR - between stages
+	-- STATE_STAGE_FAIL - lost life. Can continue, so similar to stage_clear
+	-- STATE_GAME_CLEAR - finish game
+	-- STATE_GAME_FAIL - all lives gone
 
+	-- elapsed time (total, last stage)
+	-- current stage (show current group and highlight current stage)
+	--   should show start stage of playthrough? e.g. [01] --- [34]
+	-- lives (filled vs empty heart?)
+
+	-- need to query game state here
+	if not self:inTransition() then
+		if anyButtonJustPressed() or self.timeInState > 2.0 then
+			game:changeState(STATE_STAGE_PLAY)
+		end
+	end
+end
+
+
+function game:updateLevelSelect()
 	-- menu update
 	if menu.isMenuActive("LEVELS_MENU") then
 		local m = menu.activeMenu
@@ -403,13 +457,13 @@ function game:updateTitle()
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
 		if si == 1 then
-			game:changeState(STATE_STAGE_PLAY)
+			game:changeState(STATE_STAGE_CLEAR)
 		elseif si == 2 then
 			game:changeState(STATE_LEVEL_SELECT)
 		end
 	elseif not self:inTransition() then
 		if playdate.buttonJustPressed(playdate.kButtonA) then
-			game:changeState(STATE_STAGE_PLAY)
+			game:changeState(STATE_STAGE_CLEAR)
 		elseif playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("TITLE_MENU")
 		end
@@ -424,6 +478,7 @@ function game:updateGame()
 	if not pauseMenu:isActive() then
 		local prevTime = self.timeRemaining
 
+		self.totalTimeElapsed += deltaTimeSeconds -- always counts up while in play
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 
 		if prevTime > 0 and self.timeRemaining == 0 then
