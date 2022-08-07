@@ -62,6 +62,11 @@ function menu.new(menuId, items, font, width, rowHeight, padding, zIndex, bgColo
 end
 
 
+function menu.getActiveMenu()
+	return menu.activeMenu
+end
+
+
 function menu.setActiveMenu(menuId)
 	if menu.activeMenu ~= nil then
 		menu.activeMenu:setVisible(false)

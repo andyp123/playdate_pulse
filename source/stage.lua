@@ -67,6 +67,7 @@ local userStageFilename <const> = "data/userstages"
 -- Table for stage data loaded from a file
 -- Data always copied to and from stage objects to avoid accidental modification
 stage.stageData = {}
+stage.tempStage = nil -- Single stage data stored when testing level in editor
 -- stage.stageDataCurrentIndex = 1
 
 
@@ -366,7 +367,7 @@ function stage:saveToStageData(stageIndex)
 	stageIndex = math.floor(stageIndex)
 
 	if stageIndex >= 1 and stageIndex <= numStages + 1 then
-		stage.stageData[stageIndex] = self:getDataCopy(stageIndex)
+		stage.stageData[stageIndex] = self:getDataCopy()
 		print(string.format("Writing to stageData at index '%d'", stageIndex))
 		stage.saveStagesToFile(gameStageFilename)
 	else
@@ -374,3 +375,16 @@ function stage:saveToStageData(stageIndex)
 	end
 end
 
+
+function stage:loadFromTemp()
+	if stage.tempStage ~= nil then
+		self:setData(stage.tempStage)
+	else
+		print("Error: No temporary stage data to restore from")
+	end
+end
+
+
+function stage:saveToTemp(stageData)
+	stage.tempStage = self:getDataCopy()
+end

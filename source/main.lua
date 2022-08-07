@@ -27,12 +27,10 @@ local cellTypes <const> = stage.cellTypes
 
 -- state
 local STATE_TITLE <const> = 1
-local STATE_STAGE_WAIT <const> = 2
-local STATE_STAGE_PLAY <const> = 3
-local STATE_STAGE_CLEAR <const> = 4
-local STATE_STAGE_FAIL <const> = 5
-local STATE_GAME_CLEAR <const> = 6
-local STATE_LEVEL_SELECT <const> = 7
+local STATE_STAGE_PLAY <const> = 2
+local STATE_STAGE_INTERMISSION <const> = 3
+local STATE_LEVEL_SELECT <const> = 4
+local STATE_HISCORES <const> = 5
 
 -- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
@@ -116,19 +114,24 @@ menu.new("TITLE_MENU", {
 	"Level Select",
 	"High Scores",
 	"Settings"
-}, font, 260, 32, 12, 32000)
+}, font, 280, 32, 12, 32000)
 
 menu.new("LEVELS_MENU", {
 	"Play Level",
 	"Edit Level",
 	"Delete Level",
 	"Back to Title"
-}, font, 260, 32, 12, 32000)
+}, font, 280, 32, 12, 32000)
 
 menu.new("PAUSE_MENU", {
-	"Restart Zone",
+	"Resume",
 	"Quit to Title"
-}, font, 260, 32, 12, 32000)
+}, font, 280, 32, 12, 32000)
+
+menu.new("PAUSE_MENU_EDIT", {
+	"Resume",
+	"Back to Level Edit"
+}, font, 280, 32, 12, 32000)
 
 menu.new("EDIT_MENU", {
 	"Play Level",
@@ -137,7 +140,7 @@ menu.new("EDIT_MENU", {
 	"Clear (Filled)",
 	"Clear (Empty)",
 	"Back to Level Select"
-}, font, 260, 32, 12, 32000)
+}, font, 280, 32, 12, 32000)
 
 
 -- Helper function for input check
@@ -170,6 +173,7 @@ game.timeRemaining = 10.0
 game.totalTimeElapsed = 0.0
 game.startStageId = 1
 game.livesUsed = 0
+game.s = false
 
 
 function game:getPlayData()
@@ -287,7 +291,6 @@ function game:handleStateEntry()
 	player1:setVisible(false)
 	levelSelect.setCursorVisible(false)
 
-
 	-- handle specific state functions
 	local state = self.currentState
 	if state == STATE_TITLE then
@@ -304,7 +307,7 @@ function game:handleStateEntry()
 	elseif state == STATE_LEVEL_SELECT then
 		levelSelect.drawToImage(bgImage, fontSmall)
 		levelSelect.setCursorVisible(true)
-	elseif state == STATE_STAGE_CLEAR then
+	elseif state == STATE_STAGE_INTERMISSION then
 		local playData = self:getPlayData()
 		intermission.drawToImage(bgImage, font, playData)
 	end
@@ -312,7 +315,10 @@ end
 
 
 function game:endStage(failed)
-	local numStages = stage.getNumStages()
+	if self.editModeTestingStage then
+		return self:endStageEditModeTesting(failed)
+	end
+
 	if failed then
 		if self.timeRemaining > 0 then
 			-- player died
@@ -332,14 +338,27 @@ function game:endStage(failed)
 		end
 	else
 		sound.play("STAGE_CLEAR")
+		local numStages = stage.getNumStages()
 		if currentStageIndex + 1 > numStages then
 			-- TODO: STATE_GAME_CLEAR
 			self:changeState(STATE_TITLE)
 			currentStageIndex = 1
 		else
 			currentStageIndex += 1
-			self:changeState(STATE_STAGE_CLEAR)
+			self:changeState(STATE_STAGE_INTERMISSION)
 		end
+	end
+end
+
+
+function game:endStageEditModeTesting(failed)
+	player1.editModeEnabled = true
+	self:changeState(STATE_STAGE_PLAY)
+
+	if not failed then
+		sound.play("STAGE_CLEAR")
+	elseif self.timeRemaining <= 0 then
+		sound.play("TIME_OVER")
 	end
 end
 
@@ -350,22 +369,16 @@ function game:update()
 	local state = self.currentState
 	if state == STATE_TITLE then
 		self:updateTitle()
-
 	elseif state == STATE_STAGE_PLAY then
 		if not player1.editModeEnabled then
 			self:updateGame()
 		else
 			self:updateEditMode()
 		end
-	elseif state == STATE_STAGE_CLEAR then
+	elseif state == STATE_STAGE_INTERMISSION then
 		self:updateIntermission()
-	elseif state == STATE_STAGE_FAIL then
-		-- play stage fail anim
-	elseif state == STATE_GAME_CLEAR then
-		-- play game/course clear anim
 	elseif state == STATE_LEVEL_SELECT then
 		self:updateLevelSelect()
-	else
 	end
 
 	self:updateTransition()
@@ -373,10 +386,10 @@ end
 
 
 function game:updateIntermission()
-	-- STATE_STAGE_CLEAR - between stages
-	-- STATE_STAGE_FAIL - lost life. Can continue, so similar to stage_clear
-	-- STATE_GAME_CLEAR - finish game
-	-- STATE_GAME_FAIL - all lives gone
+	-- STATE_STAGE_INTERMISSION - Between stages
+	-- retry - Lost life. Retry stage
+	-- clear - Finish game
+	-- game_over - All lives gone
 
 	-- elapsed time (total, last stage)
 	-- current stage (show current group and highlight current stage)
@@ -457,13 +470,13 @@ function game:updateTitle()
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
 		if si == 1 then
-			game:changeState(STATE_STAGE_CLEAR)
+			game:changeState(STATE_STAGE_INTERMISSION)
 		elseif si == 2 then
 			game:changeState(STATE_LEVEL_SELECT)
 		end
 	elseif not self:inTransition() then
 		if playdate.buttonJustPressed(playdate.kButtonA) then
-			game:changeState(STATE_STAGE_CLEAR)
+			game:changeState(STATE_STAGE_INTERMISSION)
 		elseif playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("TITLE_MENU")
 		end
@@ -474,8 +487,8 @@ end
 function game:updateGame()
 	if self:inTransition() then return end
 
-	local pauseMenu = menu.getMenu("PAUSE_MENU")
-	if not pauseMenu:isActive() then
+	local activeMenu = menu.getActiveMenu() --menu.getMenu("PAUSE_MENU")
+	if activeMenu == nil then
 		local prevTime = self.timeRemaining
 
 		self.totalTimeElapsed += deltaTimeSeconds -- always counts up while in play
@@ -500,15 +513,24 @@ function game:updateGame()
 		player1:update()
 
 		if playdate.buttonJustPressed(playdate.kButtonB) then
-			menu.setActiveMenu("PAUSE_MENU")
+			-- These two menus have the same options, but slightly different text
+			if self.editModeTestingStage then
+				menu.setActiveMenu("PAUSE_MENU_EDIT")
+			else
+				menu.setActiveMenu("PAUSE_MENU")
+			end
 		end
 	else
-		local si = pauseMenu:updateAndGetAnySelection()
+		local si = activeMenu:updateAndGetAnySelection()
+		-- si == 1 resumes
 		if si == 2 then
 			currentStage:clear()
-			game:changeState(STATE_TITLE)
-		elseif si == 1 then
-			-- restart zone
+			if self.editModeTestingStage then
+				player1.editModeEnabled = true
+				game:changeState(STATE_STAGE_PLAY)
+			else
+				game:changeState(STATE_TITLE)
+			end
 		end
 	end
 end
@@ -517,6 +539,7 @@ end
 function game:updateEditMode()
 	if self:inTransition() then return end
 
+	self.editModeTestingStage = false
 	local editMenu = menu.getMenu("EDIT_MENU")
 	if not editMenu:isActive() then
 		player1:update()
@@ -526,25 +549,28 @@ function game:updateEditMode()
 		end
 	else
 		local si = editMenu:updateAndGetAnySelection()
-		if si == 1 then
-			-- "Play Level",
-		elseif si == 2 then
+		if si == 1 then -- Play Level
+			currentStage:saveToTemp()
+			self.editModeTestingStage = true
+			player1.editModeEnabled = false
+			game:changeState(STATE_STAGE_PLAY)
+		elseif si == 2 then -- Save Stage
 			currentStage:saveToStageData(currentStageIndex)
-		elseif si == 3 then
+		elseif si == 3 then -- Revert Stage
 			currentStage:loadFromStageData(currentStageIndex)
 			currentStage:drawToImage()
 			gfx.sprite.redrawBackground()
-		elseif si == 4 then
+		elseif si == 4 then -- Clear to Filled
 			currentStage:clear()
 			currentStage:drawToImage()
 			gfx.sprite.redrawBackground()
-		elseif si == 5 then
+		elseif si == 5 then -- Clear to Empty
 			currentStage:clear(cellTypes.EMPTY)
 			currentStage:drawToImage()
 			gfx.sprite.redrawBackground()
-		elseif si == 6 then
+		elseif si == 6 then -- Back to Level Select
 			player1.editModeEnabled = false
-			currentStage:clear()
+			currentStage:clear() -- TODO: This should be in state change already?
 			game:changeState(STATE_LEVEL_SELECT)
 		end
 	end
@@ -568,30 +594,33 @@ end
 -- call with currentStageIndex to reload the current stage
 function loadStage(stageId)
 	local numStages = stage.getNumStages()
-	if stageId >= 1 and stageId <= numStages then
+
+	if game.editModeTestingStage then
+		currentStage:loadFromTemp()
+	elseif stageId >= 1 and stageId <= numStages then
 		currentStageIndex = stageId
 		currentStage:loadFromStageData(stageId)
-		currentStage:drawToImage()
-		gfx.sprite.redrawBackground()
-
-		local i = currentStage:findCellOfType(cellTypes.START)
-		if i then
-			local x, y = i2xy(i, STAGE_WIDTH)
-			player1:moveTo(x, y)
-		end
 	elseif player1.editModeEnabled then
 		currentStage:clear()
-		currentStage:drawToImage()
-		player1:moveTo(3, 3)
-		gfx.sprite.redrawBackground()
 	else
 		print(string.format("Error: Stage with id '%d' does not exist", stageId))
+		return
+	end
+
+	currentStage:drawToImage()
+	gfx.sprite.redrawBackground()
+
+	local i = currentStage:findCellOfType(cellTypes.START)
+	if i then
+		local x, y = i2xy(i, STAGE_WIDTH)
+		player1:moveTo(x, y)
+	else
+		player1:moveTo(3, 3)
 	end
 end
 
 
 function initGame()
-	-- initialize stage data and load a stage
 	stage.loadStagesFromFile(gameStageFileName)
 	bgImage:clear(gfx.kColorBlack)
 
