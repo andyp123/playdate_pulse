@@ -17,8 +17,12 @@ import "titleScreen"
 import "levelSelect"
 import "menu"
 import "intermission"
+import "userData"
 
 local gfx <const> = playdate.graphics
+
+-- user data
+userData.loadDataFromFile()
 
 -- constants from stage
 local STAGE_WIDTH <const> = stage.kWidth
@@ -45,7 +49,6 @@ transitionSprite:add()
 transitionSprite:setZIndex(32767)
 transitionSprite:moveTo(200,120)
 transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
-
 
 local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
 
@@ -87,7 +90,6 @@ effect:setMix(0)
 effect:setGain(5)
 channel:addEffect(effect)
 sound.addSampleToChannel("TIME_TICK", "PULSE")
-
 
 -- Stage
 local gameStageFileName <const> = "data/gamestages"
