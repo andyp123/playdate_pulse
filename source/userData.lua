@@ -82,9 +82,10 @@ function userData.trySaveStageTime(stageId, name, clearTime)
 	if stageId < 1 or stageId > numStages then return end
 	
 	local stageRecord = userData.stageTimeRecords[stageId]
-	if clearTime < currentRecord.time then
+	if clearTime < stageRecord.time then
 		stageRecord.name = name
 		stageRecord.time = clearTime
+		userData.saveDataToFile()
 		return true
 	end
 
@@ -108,9 +109,18 @@ function userData.trySaveRunRecord(name, stagesCleared, totalTime, livesUsed)
 		::continue::
 	end
 
-	-- Remove excess records (nil will not be written to the file)
-	if newRecord and tablelength(userData.runRecords) > maxRunRecords then
-		userData.runRecords[maxRunRecords + 1] = nil
+	local numRecords = tablelength(userData.runRecords)
+	if newRecord then
+		-- new record was inserted before an existing record
+		if numRecords > maxRunRecords then
+			userData.runRecords[maxRunRecords + 1] = nil
+		end
+		userData.saveDataToFile()
+	elseif numRecords < maxRunRecords then
+		-- no record was added, but can add new record at end of table
+		local record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+		userData.runRecords[numRecords + 1] = record
+		userData.saveDataToFile()
 	end
 
 	return newRecord
@@ -118,11 +128,11 @@ end
 
 
 function userData.getStageTimeRecord(stageId)
-	if stageId >= 1 and stageId <= numStages then
-		return userData.stageTimeRecords[stageId]
+	if stageId < 1 or stageId > numStages then
+		return {name = "PULSE", time = nonClearTime}
 	end
 
-	return {name = "PULSE", time = nonClearTime}
+	return userData.stageTimeRecords[stageId]
 end
 
 

@@ -23,6 +23,7 @@ local gfx <const> = playdate.graphics
 
 -- user data
 userData.loadDataFromFile()
+local tempUserName = "Andy" -- TODO: Remove
 
 -- constants from stage
 local STAGE_WIDTH <const> = stage.kWidth
@@ -172,19 +173,22 @@ game.transitionNextState = -1 -- if a transition has ended and this is > 0, it w
 game.stateTransitionAnimator = gfx.animator.new(game.transitionDuration, 1.0, 0.0, game.transitionEasingType)
 -- game state
 game.timeRemaining = 10.0
+game.timeElapsed = 0.0
 game.totalTimeElapsed = 0.0
 game.startStageId = 1
 game.livesUsed = 0
-game.s = false
+game.prevRecord = 20.0 -- used to store the best time of the previous stage
 
 
 function game:getPlayData()
 	local playData = {
 		totalTime = self.totalTimeElapsed,
+		stageTime = self.timeElapsed,
 		startStage = self.startStageId,
 		currentStage = currentStageIndex,
 		livesRemaining = player1.lives,
-		livesUsed = self.livesUsed
+		livesUsed = self.livesUsed,
+		prevRecord = self.prevRecord
 	}
 	return playData
 end
@@ -193,10 +197,12 @@ end
 function game:resetPlayData()
 	-- player1.reset()
 	player1.lives = 0
+	self.timeElapsed = 0.0
 	self.timeRemaining = 10.0
 	self.totalTimeElapsed = 0.0
 	self.startStageId = 1
 	self.livesUsed = 0
+	self.prevRecord = 20.0
 end
 
 
@@ -305,13 +311,14 @@ function game:handleStateEntry()
 		player1:reset()
 		loadStage(currentStageIndex)
 		self.timeRemaining = currentStage.time
+		self.timeElapsed = 0.0
 		gfx.sprite.redrawBackground()
 	elseif state == STATE_LEVEL_SELECT then
 		levelSelect.drawToImage(bgImage, fontSmall)
 		levelSelect.setCursorVisible(true)
 	elseif state == STATE_STAGE_INTERMISSION then
 		local playData = self:getPlayData()
-		intermission.drawToImage(bgImage, font, playData)
+		intermission.drawToImage(bgImage, font, fontSmall, playData)
 	end
 end
 
@@ -335,12 +342,24 @@ function game:endStage(failed)
 			self:changeState(STATE_STAGE_PLAY)
 		else
 			-- TODO: STATE_GAME_OVER
+
+			-- Try to save run record
+			if self.startStageId == 1 then
+				userData.trySaveRunRecord(tempUserName, currentStageIndex, self.totalTimeElapsed, self.livesUsed)
+			end
+
 			self:changeState(STATE_TITLE)
 			currentStageIndex = 1
 		end
 	else
 		sound.play("STAGE_CLEAR")
 		local numStages = stage.getNumStages()
+
+		-- Try to save stage record
+		local record = userData.getStageTimeRecord(currentStageIndex)
+		self.prevRecord = record.time -- need to store this for intermission screen!
+		userData.trySaveStageTime(currentStageIndex, tempUserName, self.timeElapsed)
+
 		if currentStageIndex + 1 > numStages then
 			-- TODO: STATE_GAME_CLEAR
 			self:changeState(STATE_TITLE)
@@ -400,7 +419,7 @@ function game:updateIntermission()
 
 	-- need to query game state here
 	if not self:inTransition() then
-		if anyButtonJustPressed() or self.timeInState > 2.0 then
+		if anyButtonJustPressed() or self.timeInState > 5.0 then
 			game:changeState(STATE_STAGE_PLAY)
 		end
 	end
@@ -493,6 +512,7 @@ function game:updateGame()
 	if activeMenu == nil then
 		local prevTime = self.timeRemaining
 
+		self.timeElapsed += deltaTimeSeconds -- time only for this stage. Keeps ticking up and ignores timer items etc.
 		self.totalTimeElapsed += deltaTimeSeconds -- always counts up while in play
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 
