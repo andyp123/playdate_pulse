@@ -236,14 +236,12 @@ function player:tryMoveAndCollect(x, y)
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
 			local gem = self.currentStage:findCellOfType(cellTypes.GEM)
 			if gem == nil then
+				-- got all gems!
+				sound.play("GET_ALL_GEMS")
 				local doorIndex = self.currentStage:findCellOfType(cellTypes.GEM_DOOR)
 				if doorIndex ~= nil then
 					local doorX, doorY = i2xy(doorIndex, stage.kWidth)
 					self.currentStage:editCell(doorX, doorY, cellTypes.EXIT)
-					-- play door open sound (gems only on gem collector stages?)
-				else
-					-- got all gems!
-					sound.play("GET_ALL_GEMS")
 				end
 			else
 				sound.play("GET_GEM")

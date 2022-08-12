@@ -71,11 +71,12 @@ sound.loadSamples({
 	PRESS_SWITCH = "sounds/block_move",
 	GET_HEART = "sounds/get_heart",
 	GET_GEM = "sounds/get_gem",
-	GET_ALL_GEMS = "sounds/get_all_gems", -- TODO: Make sound
+	GET_ALL_GEMS = "sounds/get_all_gems",
 	TIME_TICK = "sounds/time_tick",
 	TIME_OVER = "sounds/time_over",
 	MINE_EXPLODE = "sounds/mine_explode",
 	STAGE_CLEAR = "sounds/stage_clear",
+	STAGE_NEW_RECORD = "sounds/stage_new_record", -- TODO: Make sound
 	CONGRATULATIONS = "sounds/congratulations",
 	MENU_MOVE = "sounds/menu_move_2",
 	MENU_BACK = "sounds/menu_back",
