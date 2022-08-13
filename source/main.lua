@@ -18,6 +18,7 @@ import "levelSelect"
 import "menu"
 import "intermission"
 import "userData"
+import "hiscore"
 
 local gfx <const> = playdate.graphics
 
@@ -35,7 +36,12 @@ local STATE_TITLE <const> = 1
 local STATE_STAGE_PLAY <const> = 2
 local STATE_STAGE_INTERMISSION <const> = 3
 local STATE_LEVEL_SELECT <const> = 4
-local STATE_HISCORES <const> = 5
+local STATE_HISCORE <const> = 5
+
+-- local INTERMISSION_STAGE_CLEAR <const> = 1
+-- local INTERMISSION_STAGE_FAIL <const> = 2
+-- local INTERMISSION_GAME_OVER <const> = 3
+-- local INTERMISSION_GAME_CLEAR <const> = 4
 
 -- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
@@ -320,6 +326,8 @@ function game:handleStateEntry()
 	elseif state == STATE_STAGE_INTERMISSION then
 		local playData = self:getPlayData()
 		intermission.drawToImage(bgImage, font, fontSmall, playData)
+	elseif state == STATE_HISCORE then
+		hiscore.drawToImage(bgImage, font, fontSmall)
 	end
 end
 
@@ -344,13 +352,19 @@ function game:endStage(failed)
 		else
 			-- TODO: STATE_GAME_OVER
 
+			local newRecord = false
+
 			-- Try to save run record
 			if self.startStageId == 1 then
-				userData.trySaveRunRecord(tempUserName, currentStageIndex, self.totalTimeElapsed, self.livesUsed)
+				newRecord = userData.trySaveRunRecord(tempUserName, currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
 			end
 
-			self:changeState(STATE_TITLE)
 			currentStageIndex = 1
+			if newRecord then
+				self:changeState(STATE_HISCORE)
+			else
+				self:changeState(STATE_TITLE)
+			end
 		end
 	else
 		sound.play("STAGE_CLEAR")
@@ -401,9 +415,20 @@ function game:update()
 		self:updateIntermission()
 	elseif state == STATE_LEVEL_SELECT then
 		self:updateLevelSelect()
+	elseif state == STATE_HISCORE then
+		self:updateHiscore()
 	end
 
 	self:updateTransition()
+end
+
+
+function game:updateHiscore()
+	if not self:inTransition() then
+		if anyButtonJustPressed() or self.timeInState > 15.0 then
+			game:changeState(STATE_TITLE)
+		end		
+	end
 end
 
 
@@ -470,14 +495,14 @@ end
 
 function game:updateTitle()
 	-- draw and update title screen
-	if game.timeInState <= deltaTimeSeconds or menu.activeMenu == nil then
+	if self.timeInState <= deltaTimeSeconds or menu.activeMenu == nil then
 		local t = 1 - totalTimeSeconds % 1
 		local tlim = 0.5
 		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
 		if t >= tlim then
 			titleScreen.drawToImage(bgImage, jitter, jitterScale)
 			-- only redraw the whole screen after transition
-			if game.timeInState > deltaTimeSeconds then
+			if self.timeInState > deltaTimeSeconds then
 				gfx.sprite.addDirtyRect(0,0,400,100)
 			else
 				gfx.sprite.redrawBackground()
@@ -492,15 +517,21 @@ function game:updateTitle()
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
 		if si == 1 then
-			game:changeState(STATE_STAGE_INTERMISSION)
+			self:changeState(STATE_STAGE_INTERMISSION)
 		elseif si == 2 then
-			game:changeState(STATE_LEVEL_SELECT)
+			self:changeState(STATE_LEVEL_SELECT)
+		elseif si == 3 then
+			self:changeState(STATE_HISCORE)
 		end
 	elseif not self:inTransition() then
 		if playdate.buttonJustPressed(playdate.kButtonA) then
-			game:changeState(STATE_STAGE_INTERMISSION)
+			self:changeState(STATE_STAGE_INTERMISSION)
 		elseif playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("TITLE_MENU")
+		end
+		-- Show best runs screen after a delay?
+		if self.timeInState > 30.0 then
+			self:changeState(STATE_HISCORE)
 		end
 	end
 end
@@ -518,7 +549,7 @@ function game:updateGame()
 		self.timeRemaining = clamp(self.timeRemaining - deltaTimeSeconds, 0)
 
 		if prevTime > 0 and self.timeRemaining == 0 then
-			game:endStage(true) -- failed: true
+			self:endStage(true) -- failed: true
 		elseif self.timeRemaining then
 			if math.floor(prevTime) > math.floor(self.timeRemaining) then
 				sound.play("TIME_TICK")

@@ -36,3 +36,17 @@ function clamp(value, min, max)
 	if max ~= nil and value > max then return max end
 	return value
 end
+
+
+function getTimeUnits(time)
+	local sign = "+"
+	if time < 0 then sign = "-" end
+	time = math.abs(time)
+	local minutes = math.floor(time / 60)
+	return {
+		sign = sign,
+		minutes = minutes,
+		seconds = math.floor(time - (minutes * 60)),
+		milliseconds = math.floor((time - math.floor(time)) * 1000)
+	}
+end
