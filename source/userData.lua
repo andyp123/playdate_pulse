@@ -7,7 +7,7 @@ userData.__index = userData
 local userDataFilename <const> = "data/userdata"
 
 local maxUserRecords <const> = 10
-local maxRunRecords <const> = 10
+local maxRunRecords <const> = 6 -- same as num records that can be displayed on hiscore table
 
 -- Stage width * height (12 * 7) to make level select grid, so 84 stages
 local numStages <const> = 84

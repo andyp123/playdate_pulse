@@ -485,6 +485,7 @@ end
 function game:levelSelectPlayOrEdit(isEdit)
 	levelSelect.setCursorVisible(false)
 	currentStageIndex = levelSelect.selectedIndex
+	self.startStageId = currentStageIndex
 	if isEdit or currentStageIndex > stage.getNumStages() then
 		player1.editModeEnabled = true
 		player1:editModeUpdateType()
