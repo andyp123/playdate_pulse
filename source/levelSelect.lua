@@ -21,6 +21,7 @@ function levelSelect.init()
 	sprite:setImageDrawMode(gfx.kDrawModeXOR)
 	sprite:moveTo(stage.kSpriteOffset, stage.kSpriteOffset)
 	sprite:add()
+	sprite:setZIndex(29010)
 	sprite:setVisible(false)
 
 	local cursor = {

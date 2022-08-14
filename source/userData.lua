@@ -193,59 +193,70 @@ function userData.getActiveUserName()
 end
 
 
--- function userData.tryAddUser(name)
--- 	if userData.userRecords[name] == nil and tablelength(userData.userRecords) < maxUserRecords then
--- 		local record = userData.makeUserRecord(name)
--- 		userData.userRecords[name] = record
--- 		return record
--- 	end
+function userData.doesUserNameExist(name)
+	local userRecords = userData.userRecords
 
--- 	print(string.format("Error: Could not add user with name '%s'", name))
--- 	return nil
--- end
+	for i, record in ipairs(userRecords) do
+		if record.name == name then
+			return true
+		end
+	end
 
-
--- function userData.tryRemoveUser(name)
--- 	if userData.userRecords[name] ~= nil then
--- 		table.remove(userData.userRecords, name)
--- 	end
--- end
+	return false
+end
 
 
--- function userData.getUserRecord(name)
--- 	if userData.userRecords[name] ~= nil then
--- 		return userData.userRecords[name]
--- 	end
+function userData.deleteUser(userId)
+	local userRecords = userData.userRecords
 
--- 	print(string.format("Error: Could not find user with name '%s'", name))
--- 	return nil
--- end
+	if userRecords[userId] ~= nil then
+		table.remove(userRecords, userId)
+		userData.saveDataToFile()
+		return true
+	end
+
+	return false
+end
 
 
--- function userData.renameUser(name, newName)
--- 	local userRecords = userData.userRecords
--- 	if userRecords[name] ~= nill and userRecords[newName] == nil then
--- 		local record = userRecords[name]
--- 		record.name = newName
--- 		userRecords[newName] = record
--- 		userRecords[name] = nil
+function userData.addOrRenameUser(userId, name)
+	-- Can't add or rename if another user with the new name exists
+	if userId < 1 or userId > maxUserRecords or userData.doesUserNameExist(name) then
+		return false
+	end
 
--- 		-- Update run times
--- 		local runRecords = userData.runRecords
--- 		for i = 1, maxRunRecords do
--- 			if runRecords[i].name == name then
--- 				runRecords[i].name = newName
--- 			end
--- 		end
--- 		-- Update individual stage time records
--- 		local stageTimeRecords = userData.stageTimeRecords
--- 		for i = 1, numStages do
--- 			if stageTimeRecords[i].name == name then
--- 				stageTimeRecords[i].name = newName
--- 			end
--- 		end
--- 	end
--- end
+	local record = userData.userRecords[userId]
+	if record == nil then -- Add new user
+		record = userData.makeUserRecord(name)
+		userData.userRecords[userId] = record
+	else -- Rename existing user
+		local prevName = record.name
+		record.name = name
+
+		if record.bestRun ~= nil then
+			record.bestRun.name = name
+		end
+
+		-- Rename user in high score tables etc? Could potentially cheat this way?
+		-- Update run times
+		local runRecords = userData.runRecords
+		for i = 1, maxRunRecords do
+			if runRecords[i].name == prevName then
+				runRecords[i].name = name
+			end
+		end
+		-- Update individual stage time records
+		local stageTimeRecords = userData.stageTimeRecords
+		for i = 1, numStages do
+			if stageTimeRecords[i].name == prevName then
+				stageTimeRecords[i].name = name
+			end
+		end
+	end
+
+	userData.saveDataToFile()
+	return true
+end
 
 
 function userData.loadDataFromFile()
@@ -322,6 +333,8 @@ function userData.init()
 			time = nonClearTime,
 		}
 	end
+
+	userData.activeUserId = 1
 end
 
 userData.init()

@@ -61,7 +61,6 @@ function settings.update()
 end
 
 
-
 function settings.drawToImage(image, font, fontSmall)
 	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
@@ -84,42 +83,43 @@ function settings.drawToImage(image, font, fontSmall)
 		local record = userRecords[i]
 		if record == nil then
 			fontSmall:drawTextAligned("[  NO DATA  ]", 200, y, kTextAlignment.center)
-			break
-		end
+			print(i)
+		else
 
-		-- Draw around active user only
-		if i == activeUserId then
-			gfx.drawRect(10, y - 5, cursorWidth, cursorHeight)
-			iconTable:drawImage(4, 40 - 22, y + 2)
-		end
-
-		-- Name
-		fontSmall:drawTextAligned(record.name, 40, y, kTextAlignment.left)
-
-		local bestRun = record.bestRun
-
-		if bestRun ~= nil then
-			-- Stage cleared
-			local x_stage = 170
-			fontSmall:drawText(string.format("%d", bestRun.stagesCleared), x_stage, y)
-
-			-- Time
-			local x_time = 240
-			local tu = getTimeUnits(bestRun.totalTime)
-			local text = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
-			fontSmall:drawText(text, x_time, y)
-
-			-- Retries
-			x_retries = 365
-			fontSmall:drawText(bestRun.livesUsed, x_retries, y)
-
-			-- Icons
-			gfx.setImageDrawMode(gfx.kDrawModeCopy)
-			if bestRun.stagesCleared == 84 then
-				iconTable:drawImage(1, x_stage - 22, y + 1)
+			-- Draw around active user only
+			if i == activeUserId then
+				gfx.drawRect(10, y - 5, cursorWidth, cursorHeight)
+				iconTable:drawImage(4, 40 - 22, y + 2)
 			end
-			iconTable:drawImage(2, x_time - 22, y + 1)
-			iconTable:drawImage(3, x_retries - 22, y + 1)
+
+			-- Name
+			fontSmall:drawTextAligned(record.name, 40, y, kTextAlignment.left)
+
+			local bestRun = record.bestRun
+
+			if bestRun ~= nil then
+				-- Stage cleared
+				local x_stage = 170
+				fontSmall:drawText(string.format("%d", bestRun.stagesCleared), x_stage, y)
+
+				-- Time
+				local x_time = 240
+				local tu = getTimeUnits(bestRun.totalTime)
+				local text = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
+				fontSmall:drawText(text, x_time, y)
+
+				-- Retries
+				x_retries = 365
+				fontSmall:drawText(bestRun.livesUsed, x_retries, y)
+
+				-- Icons
+				gfx.setImageDrawMode(gfx.kDrawModeCopy)
+				if bestRun.stagesCleared == 84 then
+					iconTable:drawImage(1, x_stage - 22, y + 1)
+				end
+				iconTable:drawImage(2, x_time - 22, y + 1)
+				iconTable:drawImage(3, x_retries - 22, y + 1)
+			end
 		end
 
 		y += entrySpacing

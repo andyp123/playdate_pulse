@@ -450,6 +450,8 @@ function textEntry.init()
 	textEntry.sprite:moveTo(0, 0)
 	textEntry.sprite:setVisible(false)
 	textEntry.sprite:add()
+
+	textEntry.textEntryFinishedCallback = nil
 end
 
 textEntry.init()
@@ -515,15 +517,23 @@ end
 
 
 function textEntry.textEntryFinished(ok)
-	if ok then 
-		print(string.format("Text entered: %s", keyboard.text))
-	else
-		print("Text entry cancelled")
+	textEntry.setVisible(false)
+
+	if ok and textEntry.textEntryFinishedCallback ~= nil then
+		textEntry.textEntryFinishedCallback(keyboard.text)
 	end
 
-	textEntry.setVisible(false)
 	gfx.sprite.redrawBackground()
 end
+
+
+function addOrRenameUser(name)
+	if userData.addOrRenameUser(settings.selectedIndex, name) then
+		settings.drawToImage(bgImage, font, fontSmall)
+	end
+end
+
+textEntry.textEntryFinishedCallback = addOrRenameUser
 
 
 function game:updateSettings()
@@ -538,16 +548,24 @@ function game:updateSettings()
 	if menu.isMenuActive("SETTINGS_MENU") then
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
-		if si == 1 then
+		if si == 1 then -- add/rename
 			keyboard.textChangedCallback = textEntry.textChanged
 			keyboard.keyboardWillHideCallback = textEntry.textEntryFinished
 			keyboard.show("")
 			textEntry.setVisible(true)
-		elseif si == 2 then
-		elseif si == 3 then
+		elseif si == 2 then -- delete
+			if userData.deleteUser(settings.selectedIndex) then
+				settings.drawToImage(bgImage, font, fontSmall)
+				gfx.sprite.redrawBackground()
+			end
+		elseif si == 3 then -- back to title
 			game:changeState(STATE_TITLE)
 		-- si 4 is a divider
 		elseif si == 5 then -- DELETE ALL DATA
+			userData.init()
+			userData.saveDataToFile()
+			settings.drawToImage(bgImage, font, fontSmall)
+			gfx.sprite.redrawBackground()
 		end
 	elseif not self:inTransition() then
 		settings.update()
