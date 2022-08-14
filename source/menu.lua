@@ -124,7 +124,13 @@ end
 
 
 function menu:moveSelection(offset)
-	self:setSelection(self.selectedIndex + offset, true)
+	local item = self.items[self.selectedIndex + offset]
+	if item ~= nil then
+		-- Skip dividers (won't skip multiple, but why would you have multiple?)
+		if item == "---" then offset *= 2 end
+		-- Set and do final validation of selection
+		self:setSelection(self.selectedIndex + offset, true)
+	end
 end
 
 
@@ -173,13 +179,22 @@ function menu:updateImage()
 	gfx.lockFocus(image)
 	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
 
+	-- in case there are dividers
+	local halfWidth = self.width * 0.5 - self.padding
+	local halfHeight = self.rowHeight * 0.5
+	gfx.setLineWidth(3)
+
 	-- draw each piece of text
 	local items = self.items
 	local cnt = #items
 	for i = 1, cnt do
 		local x, y = self.padding + self.width // 2, (i-1) * self.rowHeight + self.padding
 		local text = items[i]
-		self.font:drawTextAligned(text, x, y, kTextAlignment.center)
+		if text == "---" then
+			gfx.drawLine(x - halfWidth, y + halfHeight, x + halfWidth, y + halfHeight)
+		else
+			self.font:drawTextAligned(text, x, y, kTextAlignment.center)
+		end
 	end
 
 	gfx.unlockFocus()

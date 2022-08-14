@@ -14,7 +14,6 @@ levelSelect = {}
 levelSelect.__index = levelSelect
 
 
-
 function levelSelect.init()
 	local size = stage.kCellSize
 	local img = gfx.image.new(size, size, gfx.kColorWhite)

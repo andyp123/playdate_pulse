@@ -6,6 +6,7 @@ import "CoreLibs/timer"
 import "CoreLibs/crank"
 import "CoreLibs/animator"
 import "CoreLibs/easing"
+import "CoreLibs/keyboard"
 
 -- Pulse
 import "global"
@@ -22,10 +23,10 @@ import "hiscore"
 import "settings"
 
 local gfx <const> = playdate.graphics
+local keyboard <const> = playdate.keyboard
 
 -- user data
 userData.loadDataFromFile()
-local tempUserName = "Andy" -- TODO: Remove
 
 -- state
 local STATE_TITLE <const> = 1
@@ -105,6 +106,7 @@ player.setResources(currentStage, playerImageTable, spriteImageTable)
 local player1 = player.new()
 
 -- time
+-- playdate.display.setRefreshRate(30)
 local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
@@ -115,13 +117,12 @@ menu.new("TITLE_MENU", {
 	"Start Game",
 	"Level Select",
 	"High Scores",
-	"Settings"
+	"User Settings"
 }, font, 280, 32, 12, 32000)
 
 menu.new("LEVELS_MENU", {
 	"Play Level",
 	"Edit Level",
-	"Delete Level",
 	"Back to Title"
 }, font, 280, 32, 12, 32000)
 
@@ -142,6 +143,15 @@ menu.new("EDIT_MENU", {
 	"Clear (Filled)",
 	"Clear (Empty)",
 	"Back to Level Select"
+}, font, 280, 32, 12, 32000)
+
+menu.new("SETTINGS_MENU", {
+	"Rename User",
+	"Delete User",
+	"Back to Title",
+	"---",
+	"Delete ALL Data"
+
 }, font, 280, 32, 12, 32000)
 
 
@@ -298,6 +308,7 @@ function game:handleStateEntry()
 	currentStage:clear()
 	player1:setVisible(false)
 	levelSelect.setCursorVisible(false)
+	settings.setCursorVisible(false)
 
 	-- handle specific state functions
 	local state = self.currentState
@@ -323,7 +334,8 @@ function game:handleStateEntry()
 	elseif state == STATE_HISCORE then
 		hiscore.drawToImage(bgImage, font, fontSmall)
 	elseif state == STATE_SETTINGS then
-
+		settings.drawToImage(bgImage, font, fontSmall)
+		settings.setCursorVisible(true)
 	end
 end
 
@@ -336,6 +348,8 @@ function game:endStage(failed)
 	-- prevent this from being triggered twice
 	if not self.inPlay then return end
 	self.inPlay = false
+
+	local userName = userData.getActiveUserName()
 
 	if failed then
 		if self.timeRemaining > 0 then
@@ -356,7 +370,7 @@ function game:endStage(failed)
 
 			-- Try to save run record
 			if self.startStageId == 1 then
-				newRecord = userData.trySaveRunRecord(tempUserName, currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
+				newRecord = userData.trySaveRunRecord(userName, currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
 			end
 
 			currentStageIndex = 1
@@ -373,10 +387,10 @@ function game:endStage(failed)
 		-- Try to save stage record
 		local record = userData.getStageTimeRecord(currentStageIndex)
 		self.prevRecord = record.time -- need to store this for intermission screen!
-		userData.trySaveStageTime(currentStageIndex, tempUserName, self.timeElapsed)
+		userData.trySaveStageTime(currentStageIndex, userName, self.timeElapsed)
 
 		if currentStageIndex + 1 > numStages then
-			-- TODO: STATE_GAME_CLEAR
+			-- TODO: STATE_GAME_CLEAR (only if run started from stage 1)
 			self:changeState(STATE_TITLE)
 			currentStageIndex = 1
 		else
@@ -417,7 +431,7 @@ function game:update()
 		self:updateLevelSelect()
 	elseif state == STATE_HISCORE then
 		self:updateHiscore()
-	elseif state == STATE_HISCORE then
+	elseif state == STATE_SETTINGS then
 		self:updateSettings()
 	end
 
@@ -425,11 +439,129 @@ function game:update()
 end
 
 
+-- NAME EDITING STUFF 
+-- TODO: Move elsewhere
+local textEntry = {}
+
+function textEntry.init()
+	textEntry.image = gfx.image.new(250, 240, gfx.kColorBlack)
+	textEntry.sprite = gfx.sprite.new(textEntry.image)
+	textEntry.sprite:setCenter(0, 0)
+	textEntry.sprite:moveTo(0, 0)
+	textEntry.sprite:setVisible(false)
+	textEntry.sprite:add()
+end
+
+textEntry.init()
+
+
+function textEntry.refreshSpriteImage(font)
+	textEntry.image:clear(gfx.kColorBlack)
+	gfx.lockFocus(textEntry.image)
+
+	local x, y = 20, 50
+
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	font:drawText("Enter a name:\n", x, y)
+
+	y += 32
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRect(x, y, 180, 40)
+
+	if keyboard.text ~= "" then
+		gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+		font:drawText(keyboard.text, x + 10, y + 10)
+	end
+
+
+	gfx.unlockFocus()
+
+	-- Force sprite to refresh
+	textEntry.sprite:markDirty()
+end
+
+
+function textEntry.setVisible(visible)
+	textEntry.sprite:setVisible(visible)
+
+	if visible then
+		textEntry.refreshSpriteImage(fontSmall)
+	end
+end
+
+
+function textEntry.getValidatedText(text, maxWidth, font)
+	-- Allow all alphanumeric chars, space and _
+	text = string.gsub(text, "[^%w _]+", "")
+
+	-- Set a maximum display width
+	if font ~= nil then
+		while font:getTextWidth(text) > maxWidth do
+			text = string.sub(text, 1, string.len(text) - 1)
+		end
+	end
+
+	return text
+end
+
+
+function textEntry.textChanged()
+	textEntry.sprite:setVisible(true)
+	keyboard.text = textEntry.getValidatedText(keyboard.text, 100, fontSmall)
+	textEntry.refreshSpriteImage(fontSmall)
+
+	print(string.format("Text: %s", keyboard.text))
+end
+
+
+function textEntry.textEntryFinished(ok)
+	if ok then 
+		print(string.format("Text entered: %s", keyboard.text))
+	else
+		print("Text entry cancelled")
+	end
+
+	textEntry.setVisible(false)
+	gfx.sprite.redrawBackground()
+end
+
+
 function game:updateSettings()
-	if not self:inTransition() then
-		if anyButtonJustPressed() then
+	if keyboard.isVisible() then
+		settings.setCursorVisible(false)
+		return
+	else
+		settings.setCursorVisible(true)
+	end
+
+	-- menu update
+	if menu.isMenuActive("SETTINGS_MENU") then
+		local m = menu.activeMenu
+		local si = m:updateAndGetAnySelection()
+		if si == 1 then
+			keyboard.textChangedCallback = textEntry.textChanged
+			keyboard.keyboardWillHideCallback = textEntry.textEntryFinished
+			keyboard.show("")
+			textEntry.setVisible(true)
+		elseif si == 2 then
+		elseif si == 3 then
 			game:changeState(STATE_TITLE)
-		end		
+		-- si 4 is a divider
+		elseif si == 5 then -- DELETE ALL DATA
+		end
+	elseif not self:inTransition() then
+		settings.update()
+
+		if playdate.buttonJustPressed(playdate.kButtonB) then
+			menu.setActiveMenu("SETTINGS_MENU")
+		elseif playdate.buttonJustPressed(playdate.kButtonA) then
+			local userId = settings.selectedIndex
+			if userData.setActiveUser(userId) then
+				settings.drawToImage(bgImage, font, fontSmall)
+				gfx.sprite.redrawBackground()
+				sound.play("MENU_SELECT")
+			end
+		end
 	end
 end
 
@@ -471,20 +603,16 @@ function game:updateLevelSelect()
 		if si == 1 or si == 2 then -- PLAY / EDIT
 			local isEdit = (si == 2)
 			self:levelSelectPlayOrEdit(isEdit)
-		elseif si == 3 then -- DELETE
-			stage.delete(levelSelect.selectedIndex)
-			levelSelect.drawToImage(bgImage, fontSmall)
-			gfx.sprite.redrawBackground()
-		elseif si == 4 then
+		elseif si == 3 then
 			game:changeState(STATE_TITLE)
 		end
 	elseif not self:inTransition() then
-		levelSelect.setCursorVisible(true)
+		-- levelSelect.setCursorVisible(true)
 		levelSelect.update()
 
 		if playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("LEVELS_MENU")
-			levelSelect.setCursorVisible(false)
+			-- levelSelect.setCursorVisible(false)
 		elseif playdate.buttonJustPressed(playdate.kButtonA) then
 			self:levelSelectPlayOrEdit()
 			sound.play("MENU_SELECT")

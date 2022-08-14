@@ -6,49 +6,30 @@ userData.__index = userData
 
 local userDataFilename <const> = "data/userdata"
 
-local maxUserRecords <const> = 10
-local maxRunRecords <const> = 6 -- same as num records that can be displayed on hiscore table
-
--- Stage width * height (12 * 7) to make level select grid, so 84 stages
-local numStages <const> = 84
+local numStages <const> = 84 -- Stage width * height (12 * 7) to make level select grid, so 84 stages
+local maxUserRecords <const> = 5 -- number of records that can be shown on the user settings screen
+local maxRunRecords <const> = 6 -- number of records that can be displayed on the best runs screen
 
 -- Used to fill time for stages that haven't been cleared
 -- The time limit is 10 seconds, but items can increase this a little
 local nonClearTime <const> = 20.0
-local defaultUserName <const> = "Player" -- can we get a name from the playdate?
+local defaultUserName <const> = "Player"
 
-userData.currentUser = nil
+-- For testing, generating dummy highscores etc.
+local dummyUserNames = {
+	"Falcon",
+	"Pigeon",
+	"Cheetah",
+	"Tortoise",
+	"Sloth",
+	"Slow Loris",
+}
 
--- Init data with empty
-function userData.init()
-	userData.userRecords = {}
-	userData.runRecords = {}
-	userData.stageTimeRecords = table.create(numStages)
-	for i = 1, numStages do
-		userData.stageTimeRecords[i] = {
-			name = "PULSE",
-			time = nonClearTime,
-		}
-	end
-end
-
-userData.init()
-
-
--- For user records only, since sum of random user best times doesn't make sense
-function userData.getSumOfStageTimes(times)
-	local totalTime = 0.0
-
-	for _, time in ipairs(times) do
-		if time <= 0.0 then
-			totalTime += nonClearTime
-		else
-			totalTime += time
-		end
-	end
-
-	return totalTime
-end
+-- Main data
+userData.stageTimeRecords = {}
+userData.userRecords = {}
+userData.runRecords = {}
+userData.activeUserId = 1 -- There must be at least one user record
 
 
 function userData.makeUserRecord(name)
@@ -79,6 +60,54 @@ function userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 end
 
 
+function userData.generateDummyRunData()
+	local runRecords = {}
+	local names = dummyUserNames
+
+	for i = 1, maxRunRecords do
+		local name = names[i % #names + 1]
+		local stagesCleared = clamp((maxRunRecords - i + 1) * 4, 1, 42)
+		local totalTime = 10.0 * stagesCleared
+		local livesUsed = math.random(0, maxRunRecords - i)
+		runRecords[i] = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+	end
+
+	return runRecords
+end
+
+
+function userData.generateDummyUserData()
+	local userRecords = {}
+	local names = dummyUserNames
+
+	for i = 1, maxUserRecords do
+		local name = names[i % #names + 1]
+		local record = userData.makeUserRecord(name)
+		record.bestRun = userData.makeRunRecord(name, 84, 314.159, 7)
+		userRecords[i] = record
+	end
+
+	return userRecords
+end
+
+
+
+-- For user records only, since sum of random user best times doesn't make sense
+function userData.getSumOfStageTimes(times)
+	local totalTime = 0.0
+
+	for _, time in ipairs(times) do
+		if time <= 0.0 then
+			totalTime += nonClearTime
+		else
+			totalTime += time
+		end
+	end
+
+	return totalTime
+end
+
+
 function userData.trySaveStageTime(stageId, name, clearTime)
 	if stageId < 1 or stageId > numStages then return end
 	
@@ -94,8 +123,9 @@ function userData.trySaveStageTime(stageId, name, clearTime)
 end
 
 
-function userData.trySaveRunRecord(name, stagesCleared, totalTime, livesUsed)
+function userData.trySaveRunRecord(name, stagesCleared, totalTime, livesUsed, saveFile)
 	if stagesCleared < 1 then return end
+	if saveFile == nil then saveFile = true end
 
 	-- If the run cleared more stages, or got a faster time, write a new record to the table
 	local newRecord = false
@@ -116,12 +146,12 @@ function userData.trySaveRunRecord(name, stagesCleared, totalTime, livesUsed)
 		if numRecords > maxRunRecords then
 			userData.runRecords[maxRunRecords + 1] = nil
 		end
-		userData.saveDataToFile()
+		if saveFile then userData.saveDataToFile() end
 	elseif numRecords < maxRunRecords then
 		-- no record was added, but can add new record at end of table
 		local record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 		userData.runRecords[numRecords + 1] = record
-		userData.saveDataToFile()
+		if saveFile then userData.saveDataToFile() end
 	end
 
 	return newRecord
@@ -137,59 +167,85 @@ function userData.getStageTimeRecord(stageId)
 end
 
 
-function userData.tryAddUser(name)
-	if userData.userRecords[name] == nil and tablelength(userData.userRecords) < maxUserRecords then
-		local record = userData.makeUserRecord(name)
-		userData.userRecords[name] = record
-		return record
+function userData.setActiveUser(userId)
+	if userData.activeUserId ~= userId and userData.userRecords[userId] ~= nil then
+		userData.activeUserId = userId
+		userData.saveDataToFile()
+		return true
 	end
 
-	print(string.format("Error: Could not add user with name '%s'", name))
-	return nil
+	return false
 end
 
 
-function userData.tryRemoveUser(name)
-	if userData.userRecords[name] ~= nil then
-		table.remove(userData.userRecords, name)
+function userData.getActiveUser()
+	return userData.userRecords[userData.activeUserId]
+end
+
+
+function userData.getActiveUserName()
+	local user =  userData.userRecords[userData.activeUserId]
+	if user ~= nil then
+		return user.name
+	else
+		return "NO USER"
 	end
 end
 
 
-function userData.getUserRecord(name)
-	if userData.userRecords[name] ~= nil then
-		return userData.userRecords[name]
-	end
+-- function userData.tryAddUser(name)
+-- 	if userData.userRecords[name] == nil and tablelength(userData.userRecords) < maxUserRecords then
+-- 		local record = userData.makeUserRecord(name)
+-- 		userData.userRecords[name] = record
+-- 		return record
+-- 	end
 
-	print(string.format("Error: Could not find user with name '%s'", name))
-	return nil
-end
+-- 	print(string.format("Error: Could not add user with name '%s'", name))
+-- 	return nil
+-- end
 
 
-function userData.renameUser(name, newName)
-	local userRecords = userData.userRecords
-	if userRecords[name] ~= nill and userRecords[newName] == nil then
-		local record = userRecords[name]
-		record.name = newName
-		userRecords[newName] = record
-		userRecords[name] = nil
+-- function userData.tryRemoveUser(name)
+-- 	if userData.userRecords[name] ~= nil then
+-- 		table.remove(userData.userRecords, name)
+-- 	end
+-- end
 
-		-- Update run times
-		local runRecords = userData.runRecords
-		for i = 1, maxRunRecords do
-			if runRecords[i].name == name then
-				runRecords[i].name = newName
-			end
-		end
-		-- Update individual stage time records
-		local stageTimeRecords = userData.stageTimeRecords
-		for i = 1, numStages do
-			if stageTimeRecords[i].name == name then
-				stageTimeRecords[i].name = newName
-			end
-		end
-	end
-end
+
+-- function userData.getUserRecord(name)
+-- 	if userData.userRecords[name] ~= nil then
+-- 		return userData.userRecords[name]
+-- 	end
+
+-- 	print(string.format("Error: Could not find user with name '%s'", name))
+-- 	return nil
+-- end
+
+
+-- function userData.renameUser(name, newName)
+-- 	local userRecords = userData.userRecords
+-- 	if userRecords[name] ~= nill and userRecords[newName] == nil then
+-- 		local record = userRecords[name]
+-- 		record.name = newName
+-- 		userRecords[newName] = record
+-- 		userRecords[name] = nil
+
+-- 		-- Update run times
+-- 		local runRecords = userData.runRecords
+-- 		for i = 1, maxRunRecords do
+-- 			if runRecords[i].name == name then
+-- 				runRecords[i].name = newName
+-- 			end
+-- 		end
+-- 		-- Update individual stage time records
+-- 		local stageTimeRecords = userData.stageTimeRecords
+-- 		for i = 1, numStages do
+-- 			if stageTimeRecords[i].name == name then
+-- 				stageTimeRecords[i].name = newName
+-- 			end
+-- 		end
+-- 	end
+-- end
 
 
 function userData.loadDataFromFile()
@@ -198,20 +254,24 @@ function userData.loadDataFromFile()
 	if data == nil then
 		print(string.format("Error: Could not load user data from '%s'", userDataFilename))
 
-		-- TODO: Remove this and save only when a user is added?
 		userData.saveDataToFile()
 	else
 		-- Copy any user and run records from the loaded data
 		-- Note that I'm doing no real validation of the data here...
 		if data.userRecords ~= nil then
 			local userRecords = {}
-			local i = 0
-			for name, record in ipairs(data.userRecords) do
+			for i, record in ipairs(data.userRecords) do
 				if i > maxUserRecords then break end
-				userRecords[name] = record
-				i += 1
+				userRecords[i] = record
 			end
 			userData.userRecords = userRecords
+		end
+
+		local userId = data.activeUserId
+		if userId ~= nil and userId <= #userData.userRecords then
+			userData.activeUserId = userId
+		else
+			userData.activeUserId = 1
 		end
 
 		if data.runRecords ~= nil then
@@ -240,6 +300,7 @@ end
 
 function userData.saveDataToFile()
 	local data = {
+		activeUserId = userData.activeUserId,
 		userRecords = userData.userRecords,
 		runRecords = userData.runRecords,
 		stageTimeRecords = userData.stageTimeRecords
@@ -248,3 +309,19 @@ function userData.saveDataToFile()
 	print(string.format("Saving user data to '%s'", userDataFilename))
 	playdate.datastore.write(data, userDataFilename, false)
 end
+
+
+-- Init data with empty
+function userData.init()
+	userData.userRecords = userData.generateDummyUserData()
+	userData.runRecords = userData.generateDummyRunData()
+	userData.stageTimeRecords = table.create(numStages)
+	for i = 1, numStages do
+		userData.stageTimeRecords[i] = {
+			name = "PULSE",
+			time = nonClearTime,
+		}
+	end
+end
+
+userData.init()
