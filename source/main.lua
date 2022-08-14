@@ -19,6 +19,7 @@ import "menu"
 import "intermission"
 import "userData"
 import "hiscore"
+import "settings"
 
 local gfx <const> = playdate.graphics
 
@@ -26,22 +27,13 @@ local gfx <const> = playdate.graphics
 userData.loadDataFromFile()
 local tempUserName = "Andy" -- TODO: Remove
 
--- constants from stage
-local STAGE_WIDTH <const> = stage.kWidth
-local STAGE_HEIGHT <const> = stage.kHeight
-local cellTypes <const> = stage.cellTypes
-
 -- state
 local STATE_TITLE <const> = 1
 local STATE_STAGE_PLAY <const> = 2
 local STATE_STAGE_INTERMISSION <const> = 3
 local STATE_LEVEL_SELECT <const> = 4
 local STATE_HISCORE <const> = 5
-
--- local INTERMISSION_STAGE_CLEAR <const> = 1
--- local INTERMISSION_STAGE_FAIL <const> = 2
--- local INTERMISSION_GAME_OVER <const> = 3
--- local INTERMISSION_GAME_CLEAR <const> = 4
+local STATE_SETTINGS <const> = 6
 
 -- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
@@ -57,7 +49,7 @@ transitionSprite:setZIndex(32767)
 transitionSprite:moveTo(200,120)
 transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
 
-local jitter = jitterTable.new((STAGE_WIDTH + 1) * (STAGE_HEIGHT + 1))
+local jitter = jitterTable.new((stage.kWidth + 1) * (stage.kHeight + 1))
 
 -- Fonts
 local font = gfx.font.new("fonts/Roobert-20-Medium")
@@ -82,7 +74,7 @@ sound.loadSamples({
 	TIME_OVER = "sounds/time_over",
 	MINE_EXPLODE = "sounds/mine_explode",
 	STAGE_CLEAR = "sounds/stage_clear",
-	STAGE_NEW_RECORD = "sounds/stage_new_record", -- TODO: Make sound
+	-- STAGE_NEW_RECORD = "sounds/stage_new_record", -- TODO: Make sound
 	CONGRATULATIONS = "sounds/congratulations",
 	MENU_MOVE = "sounds/menu_move_2",
 	MENU_BACK = "sounds/menu_back",
@@ -185,6 +177,7 @@ game.totalTimeElapsed = 0.0
 game.startStageId = 1
 game.livesUsed = 0
 game.prevRecord = 20.0 -- used to store the best time of the previous stage
+game.inPlay = false
 
 
 function game:getPlayData()
@@ -319,6 +312,7 @@ function game:handleStateEntry()
 		loadStage(currentStageIndex)
 		self.timeRemaining = currentStage.time
 		self.timeElapsed = 0.0
+		self.inPlay = true
 		gfx.sprite.redrawBackground()
 	elseif state == STATE_LEVEL_SELECT then
 		levelSelect.drawToImage(bgImage, fontSmall)
@@ -328,6 +322,8 @@ function game:handleStateEntry()
 		intermission.drawToImage(bgImage, font, fontSmall, playData)
 	elseif state == STATE_HISCORE then
 		hiscore.drawToImage(bgImage, font, fontSmall)
+	elseif state == STATE_SETTINGS then
+
 	end
 end
 
@@ -336,6 +332,10 @@ function game:endStage(failed)
 	if self.editModeTestingStage then
 		return self:endStageEditModeTesting(failed)
 	end
+
+	-- prevent this from being triggered twice
+	if not self.inPlay then return end
+	self.inPlay = false
 
 	if failed then
 		if self.timeRemaining > 0 then
@@ -417,9 +417,20 @@ function game:update()
 		self:updateLevelSelect()
 	elseif state == STATE_HISCORE then
 		self:updateHiscore()
+	elseif state == STATE_HISCORE then
+		self:updateSettings()
 	end
 
 	self:updateTransition()
+end
+
+
+function game:updateSettings()
+	if not self:inTransition() then
+		if anyButtonJustPressed() then
+			game:changeState(STATE_TITLE)
+		end		
+	end
 end
 
 
@@ -523,6 +534,8 @@ function game:updateTitle()
 			self:changeState(STATE_LEVEL_SELECT)
 		elseif si == 3 then
 			self:changeState(STATE_HISCORE)
+		elseif si == 4 then
+			self:changeState(STATE_SETTINGS)
 		end
 	elseif not self:inTransition() then
 		if playdate.buttonJustPressed(playdate.kButtonA) then
@@ -541,8 +554,8 @@ end
 function game:updateGame()
 	if self:inTransition() then return end
 
-	local activeMenu = menu.getActiveMenu() --menu.getMenu("PAUSE_MENU")
-	if activeMenu == nil then
+	local activeMenu = menu.getActiveMenu()
+	if self.inPlay and activeMenu == nil then
 		local prevTime = self.timeRemaining
 
 		self.timeElapsed += deltaTimeSeconds -- time only for this stage. Keeps ticking up and ignores timer items etc.
@@ -575,7 +588,7 @@ function game:updateGame()
 				menu.setActiveMenu("PAUSE_MENU")
 			end
 		end
-	else
+	elseif activeMenu ~= nil then
 		local si = activeMenu:updateAndGetAnySelection()
 		-- si == 1 resumes
 		if si == 2 then
@@ -620,7 +633,7 @@ function game:updateEditMode()
 			currentStage:drawToImage()
 			gfx.sprite.redrawBackground()
 		elseif si == 5 then -- Clear to Empty
-			currentStage:clear(cellTypes.EMPTY)
+			currentStage:clear(stage.cellTypes.EMPTY)
 			currentStage:drawToImage()
 			gfx.sprite.redrawBackground()
 		elseif si == 6 then -- Back to Level Select
@@ -665,9 +678,9 @@ function loadStage(stageId)
 	currentStage:drawToImage()
 	gfx.sprite.redrawBackground()
 
-	local i = currentStage:findCellOfType(cellTypes.START)
+	local i = currentStage:findCellOfType(stage.cellTypes.START)
 	if i then
-		local x, y = i2xy(i, STAGE_WIDTH)
+		local x, y = i2xy(i, stage.kWidth)
 		player1:moveTo(x, y)
 	else
 		player1:moveTo(3, 3)

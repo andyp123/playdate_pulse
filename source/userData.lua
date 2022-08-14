@@ -17,6 +17,7 @@ local numStages <const> = 84
 local nonClearTime <const> = 20.0
 local defaultUserName <const> = "Player" -- can we get a name from the playdate?
 
+userData.currentUser = nil
 
 -- Init data with empty
 function userData.init()
