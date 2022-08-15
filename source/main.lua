@@ -352,33 +352,24 @@ function game:endStage(failed)
 	local userName = userData.getActiveUserName()
 
 	if failed then
-		if self.timeRemaining > 0 then
-			-- player died
-		else
+		if self.timeRemaining <= 0 then
 			sound.play("TIME_OVER")
-		end
+		end -- else player died
 
-		if player1.lives > 0 then
+		if player1.lives > 0 then -- RETRY STAGE
 			-- reload the level
 			player1.lives = 0
 			self.livesUsed += 1
 			self:changeState(STATE_STAGE_PLAY)
-		else
-			-- TODO: STATE_GAME_OVER
-
-			local newRecord = false
-
-			-- Try to save run record
+		else -- GAME OVER
 			if self.startStageId == 1 then
-				newRecord = userData.trySaveRunRecord(userName, currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
-			end
-
-			currentStageIndex = 1
-			if newRecord then
+				userData.trySaveRunRecord(currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
 				self:changeState(STATE_HISCORE)
 			else
 				self:changeState(STATE_TITLE)
 			end
+
+			currentStageIndex = 1
 		end
 	else
 		sound.play("STAGE_CLEAR")
@@ -389,15 +380,22 @@ function game:endStage(failed)
 		self.prevRecord = record.time -- need to store this for intermission screen!
 		userData.trySaveStageTime(currentStageIndex, userName, self.timeElapsed)
 
-		if currentStageIndex + 1 > numStages then
-			-- TODO: STATE_GAME_CLEAR (only if run started from stage 1)
-			self:changeState(STATE_TITLE)
+		if currentStageIndex + 1 > numStages then -- GAME CLEAR
+			if self.startStageId == 1 then
+				userData.trySaveRunRecord(currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
+				self:changeState(STATE_HISCORE)
+			else
+				self:changeState(STATE_TITLE)
+			end
+
 			currentStageIndex = 1
-		else
+		else -- ADVANCE TO NEXT STAGE
 			currentStageIndex += 1
 			self:changeState(STATE_STAGE_INTERMISSION)
 		end
 	end
+
+
 end
 
 
@@ -468,7 +466,7 @@ function textEntry.refreshSpriteImage(font)
 
 	y += 32
 	gfx.setColor(gfx.kColorWhite)
-	gfx.fillRect(x, y, 180, 40)
+	gfx.fillRect(x, y, 130, 40)
 
 	if keyboard.text ~= "" then
 		gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
@@ -511,8 +509,6 @@ function textEntry.textChanged()
 	textEntry.sprite:setVisible(true)
 	keyboard.text = textEntry.getValidatedText(keyboard.text, 100, fontSmall)
 	textEntry.refreshSpriteImage(fontSmall)
-
-	print(string.format("Text: %s", keyboard.text))
 end
 
 

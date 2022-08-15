@@ -60,6 +60,7 @@ function userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 end
 
 
+-- Used to populate the high score table
 function userData.generateDummyRunData()
 	local runRecords = {}
 	local names = dummyUserNames
@@ -76,6 +77,7 @@ function userData.generateDummyRunData()
 end
 
 
+-- Used only for testing
 function userData.generateDummyUserData()
 	local userRecords = {}
 	local names = dummyUserNames
@@ -85,6 +87,19 @@ function userData.generateDummyUserData()
 		local record = userData.makeUserRecord(name)
 		record.bestRun = userData.makeRunRecord(name, 84, 314.159, 7)
 		userRecords[i] = record
+	end
+
+	return userRecords
+end
+
+
+-- Clear data, but leave a single usable user record
+function userData.generateEmptyUserData()
+	local userRecords = table.create(maxUserRecords)
+	userRecords[1] = userData.makeUserRecord(defaultUserName)
+
+	for i = 2, maxUserRecords do
+		userRecords[i] = {}
 	end
 
 	return userRecords
@@ -123,38 +138,67 @@ function userData.trySaveStageTime(stageId, name, clearTime)
 end
 
 
-function userData.trySaveRunRecord(name, stagesCleared, totalTime, livesUsed, saveFile)
-	if stagesCleared < 1 then return end
-	if saveFile == nil then saveFile = true end
+-- Note: These functions will always save for the active user
+function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
+	local newPersonalBest =  userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
+	local newRunRank = userData.trySaveGlobalRunRecord(stagesCleared, totalTime, livesUsed)
+
+	if newPersonalBest or newRunRank > 0 then
+		userData.saveDataToFile()
+	end
+
+	-- can use these to trigger events etc.
+	return newPersonalBest, newRunRank
+end
+
+
+-- Shouldn't use this externally without manually saving
+function userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
+	local userRecord = userData.getActiveUser()
+	local runRecord = userRecord.bestRun
+
+	if runRecord == nil or stagesCleared > runRecord.stagesCleared or
+	  (stagesCleared == runRecord.stagesCleared and totalTime < runRecord.totalTime) then
+		userRecord.bestRun = userData.makeRunRecord(userRecord.name, stagesCleared, totalTime, livesUsed)
+		return true
+	end
+
+	return false
+end
+
+
+function userData.trySaveGlobalRunRecord(stagesCleared, totalTime, livesUsed)
+	if stagesCleared < 1 then return 0 end
+
+	local name = userData.getActiveUserName()
 
 	-- If the run cleared more stages, or got a faster time, write a new record to the table
-	local newRecord = false
+	local rank = 0
 	for i, runRecord in ipairs(userData.runRecords) do
 		if stagesCleared < runRecord.stagesCleared then goto continue end
 		if stagesCleared > runRecord.stagesCleared or totalTime < runRecord.totalTime then
 			local record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 			table.insert(userData.runRecords, i, record)
-			newRecord = true
+			rank = i
 			break
 		end
 		::continue::
 	end
 
 	local numRecords = tablelength(userData.runRecords)
-	if newRecord then
+	if rank > 0 then
 		-- new record was inserted before an existing record
 		if numRecords > maxRunRecords then
 			userData.runRecords[maxRunRecords + 1] = nil
 		end
-		if saveFile then userData.saveDataToFile() end
 	elseif numRecords < maxRunRecords then
 		-- no record was added, but can add new record at end of table
 		local record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 		userData.runRecords[numRecords + 1] = record
-		if saveFile then userData.saveDataToFile() end
+		rank = numRecords + 1
 	end
 
-	return newRecord
+	return rank
 end
 
 
@@ -168,7 +212,9 @@ end
 
 
 function userData.setActiveUser(userId)
-	if userData.activeUserId ~= userId and userData.userRecords[userId] ~= nil then
+	local user = userData.userRecords[userId]
+
+	if userData.activeUserId ~= userId and user ~= nil and user.name ~= nil then
 		userData.activeUserId = userId
 		userData.saveDataToFile()
 		return true
@@ -184,33 +230,63 @@ end
 
 
 function userData.getActiveUserName()
-	local user =  userData.userRecords[userData.activeUserId]
-	if user ~= nil then
-		return user.name
-	else
+	local user = userData.userRecords[userData.activeUserId]
+
+	if user == nil or user.name == nil then
 		return "NO USER"
+	else
+		return user.name
 	end
 end
 
 
-function userData.doesUserNameExist(name)
+-- Mostly useful to check a named user exists
+function userData.getUserIdFromName(name)
 	local userRecords = userData.userRecords
 
 	for i, record in ipairs(userRecords) do
 		if record.name == name then
-			return true
+			return i
 		end
 	end
 
-	return false
+	return 0
+end
+
+
+function userData.getNumUserRecords()
+	local userRecords = userData.userRecords
+	local count = 0
+	local firstUser = 0
+
+	for i, record in ipairs(userRecords) do
+		if record.name ~= nil then
+			print(record.name)
+			if firstUser == 0 then firstUser = i end
+			count += 1
+		end
+	end
+
+	return count, firstUser
 end
 
 
 function userData.deleteUser(userId)
 	local userRecords = userData.userRecords
+	local user = userRecords[userId]
 
-	if userRecords[userId] ~= nil then
-		table.remove(userRecords, userId)
+	if user ~= nil and user.name ~= nil then
+		userRecords[userId] = {}
+
+		-- Make sure there is at least one user record, and it is active
+		local userCount, firstUser = userData.getNumUserRecords()
+		if userCount > 0 then
+			userData.activeUserId = firstUser
+		else
+			userData.userRecords[1] = userData.makeUserRecord(defaultUserName)
+			userData.activeUserId = 1
+		end
+
 		userData.saveDataToFile()
 		return true
 	end
@@ -221,7 +297,7 @@ end
 
 function userData.addOrRenameUser(userId, name)
 	-- Can't add or rename if another user with the new name exists
-	if userId < 1 or userId > maxUserRecords or userData.doesUserNameExist(name) then
+	if userId < 1 or userId > maxUserRecords or userData.getUserIdFromName(name) > 0 then
 		return false
 	end
 
@@ -238,20 +314,21 @@ function userData.addOrRenameUser(userId, name)
 		end
 
 		-- Rename user in high score tables etc? Could potentially cheat this way?
-		-- Update run times
-		local runRecords = userData.runRecords
-		for i = 1, maxRunRecords do
-			if runRecords[i].name == prevName then
-				runRecords[i].name = name
-			end
-		end
-		-- Update individual stage time records
-		local stageTimeRecords = userData.stageTimeRecords
-		for i = 1, numStages do
-			if stageTimeRecords[i].name == prevName then
-				stageTimeRecords[i].name = name
-			end
-		end
+		-- Cheat: Rename self to score table name, then rename back. Will inherit scores...
+		-- -- Update run times
+		-- local runRecords = userData.runRecords
+		-- for i = 1, maxRunRecords do
+		-- 	if runRecords[i].name == prevName then
+		-- 		runRecords[i].name = name
+		-- 	end
+		-- end
+		-- -- Update individual stage time records
+		-- local stageTimeRecords = userData.stageTimeRecords
+		-- for i = 1, numStages do
+		-- 	if stageTimeRecords[i].name == prevName then
+		-- 		stageTimeRecords[i].name = name
+		-- 	end
+		-- end
 	end
 
 	userData.saveDataToFile()
@@ -324,7 +401,7 @@ end
 
 -- Init data with empty
 function userData.init()
-	userData.userRecords = userData.generateDummyUserData()
+	userData.userRecords = userData.generateEmptyUserData()
 	userData.runRecords = userData.generateDummyRunData()
 	userData.stageTimeRecords = table.create(numStages)
 	for i = 1, numStages do

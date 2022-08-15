@@ -2,16 +2,19 @@ PULSE TODO
 ----------
 
 Immediate Tasks:
-- When in editor mode, player sprite should use black as transparent, and maybe flash inverted/invisible
-- Game over screen (should perhaps use same code as intermission, but different state to show game over)
-- Need a way to emphasize the last 3 seconds or so. Perhaps use sound, but visual effect helpful
+- Allow crank input on menus in addition to dpad?
+- Highlight new high scores on the score table after finishing a game
+- Game over screen (using intermission code)
+- Game clear screen (using intermission code)
 - Need a better effect when time runs out
+- Need a way to emphasize the last 3 seconds or so. Perhaps use sound, but visual effect helpful
 - Stage items still fade weirdly when changing modes sometimes
 - Key needs more black background for when on top of switches?
 - Sprites need some work, especially rotate items
 - More stages. Currently only ~50, but need 84
 - Dummy data needed for userdata file (not users, but runs and stage times)
 - A few new sounds. New Stage Record, Hi score entered (should be on table), transition/fade sound
+- When in editor mode, player sprite should use black as transparent, and maybe flash inverted/invisible
 
 Done
 x High score screen showing max stage reached, total time taken and number of retries

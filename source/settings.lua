@@ -81,9 +81,8 @@ function settings.drawToImage(image, font, fontSmall)
 		gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 
 		local record = userRecords[i]
-		if record == nil then
+		if record == nil or record.name == nil then
 			fontSmall:drawTextAligned("[  NO DATA  ]", 200, y, kTextAlignment.center)
-			print(i)
 		else
 
 			-- Draw around active user only
@@ -99,7 +98,7 @@ function settings.drawToImage(image, font, fontSmall)
 
 			if bestRun ~= nil then
 				-- Stage cleared
-				local x_stage = 170
+				local x_stage = 180
 				fontSmall:drawText(string.format("%d", bestRun.stagesCleared), x_stage, y)
 
 				-- Time
