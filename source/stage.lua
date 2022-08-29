@@ -26,12 +26,6 @@ stage.kSpriteOffset = 24
 -- Default settings
 stage.kDefaultTime = 10
 
-stage.modes = {
-	STANDARD = 0,
-	GEM_COLLECTOR = 1,
-	SPACE_FILLER = 2
-}
-
 -- Cell types correspond to sprite indices
 -- A table of values seems easier to work with than individual constants
 stage.cellTypes = {
@@ -62,7 +56,6 @@ stage.cellTypes = {
 
 -- Stage data file names
 local gameStageFilename <const> = "data/gamestages"
-local userStageFilename <const> = "data/userstages"
 
 -- Table for stage data loaded from a file
 -- Data always copied to and from stage objects to avoid accidental modification

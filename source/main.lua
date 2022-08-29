@@ -279,19 +279,19 @@ function game:drawTransition(drawMode)
 
 	gfx.lockFocus(transitionImage)
 
+	local floor = math.floor
+
 	local t = self.stateTransitionAnimator:currentValue()
-	local frameId = clamp(math.floor(t * 9), 1, 8)
-	-- print(t, frameId)
+	local frameId = clamp(floor(t * 9), 1, 8)
 	local frameImage = transitionImageTable:getImage(frameId)
 	local tileSize = 32
 	local width = math.ceil(400 / tileSize) -- fill whole screen (400x240)
-	local cnt = width * math.ceil(240 / tileSize)
+	local cnt = width * math.ceil(240 / tileSize) - 1
 
-	for i = 1, cnt do
-		local xpos, ypos = i2xy0(i, width)
-		xpos = xpos * tileSize
-		ypos = ypos * tileSize
-		frameImage:draw(xpos, ypos)
+	for i = 0, cnt do
+		local x = i % width
+		local y = floor((i - x) / width)
+		frameImage:draw(x * tileSize, y * tileSize)
 	end
 
 	gfx.unlockFocus()
