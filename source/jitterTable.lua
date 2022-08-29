@@ -33,15 +33,11 @@ end
 
 
 function jitterTable:getAt(i, scale)
-	scale = scale or 1.0
-
 	return self.samples[2*i-1] * scale, self.samples[2*i] * scale
 end
 
 
 function jitterTable:get(scale)
-	scale = scale or 1.0
-
 	local i = self.nextSampleIdx * 2
 	if self.nextSampleIdx == self.numSamples then
 		self.nextSampleIdx = 1

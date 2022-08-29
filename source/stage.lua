@@ -137,6 +137,8 @@ function stage:drawToImage(jitterScale)
 	local tileImages = self.tileImages
 	local jitter = self.jitter
 	if jitterScale == nil then jitterScale = 0 end
+	-- Access the samples directly to speed this up
+	local jt = self.jitter.samples
 
 	for i = 1, self.kNumCells do
 		local y = math.floor((i - 1) / width)
@@ -144,15 +146,30 @@ function stage:drawToImage(jitterScale)
 		local xp = x * size + offset
 		local yp = y * size + offset
 
-		-- jitter for each corner x and y
-		local tlx, tly = jitter:getAt(i, jitterScale)
-		local trx, try = jitter:getAt(i + 1, jitterScale)
-		local blx, bly = jitter:getAt(i + width, jitterScale)
-		local brx, bry = jitter:getAt(i + width + 1, jitterScale)
-
 		if cells[i] == 1 then
 			tileImages:drawImage(1, xp, yp)
 		else
+			-- jitter for each corner x and y
+			-- local tlx, tly = jitter:getAt(i, jitterScale)
+			-- local trx, try = jitter:getAt(i + 1, jitterScale)
+			-- local blx, bly = jitter:getAt(i + width, jitterScale)
+			-- local brx, bry = jitter:getAt(i + width + 1, jitterScale)
+
+			-- Attempt speedup... This is the jitter table code:
+			-- self.samples[2*i-1] * scale, self.samples[2*i] * scale
+			local si = 2*i
+			local tlx = jt[si-1] * jitterScale
+			local tly = jt[si] * jitterScale
+			si = 2*(i+1)
+			local trx = jt[si-1] * jitterScale
+			local try = jt[si] * jitterScale
+			si = 2*(i+width)
+			local blx = jt[si-1] * jitterScale
+			local bly = jt[si] * jitterScale
+			si = 2*(i+width+1)
+			local brx = jt[si-1] * jitterScale
+			local bry = jt[si] * jitterScale
+
 			-- calculate the tile edges
 			-- t, r, b, l order
 			xp += 4

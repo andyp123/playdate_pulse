@@ -42,36 +42,26 @@ function titleScreen.drawLineLoop(lineData, x, y, xScale, yScale, jitter, jitter
 end
 
 
-function titleScreen.drawLogo(cx, cy, letterSize, letterSpacing, jitter, jitterScale, lineWidth, invertColors)
+function titleScreen.drawLogo(cx, cy, letterSize, letterSpacing, jitter, jitterScale)
 	local sampleIndex = jitter.nextSampleIdx
-	gfx.setLineWidth(lineWidth * 4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
 
 	local drawLineLoop = titleScreen.drawLineLoop
 	local letterScale = letterSize / 3
 	local totalWidth = letterSize * 5 + letterSpacing * 4
 	local x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
-	local bgcolor, fgcolor = gfx.kColorBlack, gfx.kColorWhite
-	if invertColors then bgcolor, fgcolor = gfx.kColorWhite, gfx.kColorBlack end
 
-	gfx.setColor(bgcolor)
+	drawLineLoop(LOGO_P, x, y, letterScale, -letterScale, jitter, jitterScale)
+	x += letterSize + letterSpacing
+	drawLineLoop(LOGO_U, x, y, letterScale, -letterScale, jitter, jitterScale)
+	x += letterSize + letterSpacing
+	drawLineLoop(LOGO_L, x, y, letterScale, -letterScale, jitter, jitterScale)
+	x += letterSize + letterSpacing
+	drawLineLoop(LOGO_S, x, y, letterScale, -letterScale, jitter, jitterScale)
+	x += letterSize + letterSpacing
+	drawLineLoop(LOGO_E, x, y, letterScale, -letterScale, jitter, jitterScale)
 
-	for i = 1, 2 do
-		drawLineLoop(LOGO_P, x, y, letterScale, -letterScale, jitter, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_U, x, y, letterScale, -letterScale, jitter, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_L, x, y, letterScale, -letterScale, jitter, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_S, x, y, letterScale, -letterScale, jitter, jitterScale)
-		x += letterSize + letterSpacing
-		drawLineLoop(LOGO_E, x, y, letterScale, -letterScale, jitter, jitterScale)
-
-		jitter.nextSampleIdx = sampleIndex
-		gfx.setColor(fgcolor)
-		gfx.setLineWidth(lineWidth)
-		x, y = cx - totalWidth * 0.5, cy - letterSize * 0.5
-	end
+	-- Make sure to reset the sample index for the next frame!
+	jitter.nextSampleIdx = sampleIndex
 end
 
 
@@ -87,17 +77,9 @@ function titleScreen.drawToImage(image, jitter, jitterScale)
 
 	gfx.setColor(gfx.kColorWhite)
 	gfx.setLineWidth(4)
-	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
-
-	for i = 1, numCells do
-		local x, y = i2xy0(i, width)
-		local xp = x * size + offset
-		local yp = y * size + offset
-		tileImages:drawImage(1, xp, yp)
-	end
-
+	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
 	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
-	titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale, 4, false)
+	titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale)
 
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for menu", 200, 130, kTextAlignment.center)
