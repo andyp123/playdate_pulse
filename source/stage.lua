@@ -135,13 +135,18 @@ function stage:drawToImage(jitterScale)
 	gfx.setLineCapStyle(gfx.kLineCapStyleSquare)
 
 	local tileImages = self.tileImages
+
 	local jitter = self.jitter
 	if jitterScale == nil then jitterScale = 0 end
 	-- Access the samples directly to speed this up
 	local jt = self.jitter.samples
 
+	-- local function access
+	local floor = math.floor
+	local drawLine = gfx.drawLine
+
 	for i = 1, self.kNumCells do
-		local y = math.floor((i - 1) / width)
+		local y = floor((i - 1) / width)
 		local x = i - (width * y) - 1
 		local xp = x * size + offset
 		local yp = y * size + offset
@@ -175,16 +180,16 @@ function stage:drawToImage(jitterScale)
 			xp += 4
 			yp += 4
 			if y == 0 or cells[i - width] == 1 then -- Top
-				gfx.drawLine(xp + tlx, yp + tly, xp + trx + size, yp + try)
+				drawLine(xp + tlx, yp + tly, xp + trx + size, yp + try)
 			end
 			if x == width - 1 or cells[i + 1] == 1 then -- Right
-				gfx.drawLine(xp + trx + size, yp + try, xp + brx + size, yp + bry + size)
+				drawLine(xp + trx + size, yp + try, xp + brx + size, yp + bry + size)
 			end
 			if y == height - 1 or cells[i + width] == 1 then -- Bottom
-				gfx.drawLine(xp + blx, yp + bly + size, xp + brx + size, yp + bry + size)
+				drawLine(xp + blx, yp + bly + size, xp + brx + size, yp + bry + size)
 			end
 			if x == 0 or cells[i - 1] == 1 then -- Left
-				gfx.drawLine(xp + tlx, yp + tly, xp + blx, yp + bly + size)
+				drawLine(xp + tlx, yp + tly, xp + blx, yp + bly + size)
 			end
 		end
 	end
