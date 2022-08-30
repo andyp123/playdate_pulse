@@ -84,18 +84,8 @@ sound.loadSamples({
 	EDIT_TILE = "sounds/edit_tile"
 })
 
--- TEST
-local channel = sound.getChannel("PULSE")
-local effect = playdate.sound.overdrive.new()
-effect:setMix(0)
-effect:setGain(5)
-channel:addEffect(effect)
-sound.addSampleToChannel("TIME_TICK", "PULSE")
-
 -- Stage
 local gameStageFileName <const> = "data/gamestages"
-local userStageFileName <const> = "data/userstages"
-
 local currentStage = stage.new()
 local currentStageIndex = 1
 stage.setResources(tileImageTable, spriteImageTable, jitter)
@@ -114,10 +104,10 @@ local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 -- font, 260, 32, 12, 32000) -- 6 rows max
 -- fontSmall, 260, 22, 8, 32000) -- 10 rows max
 menu.new("TITLE_MENU", {
-	"Start Game",
-	"Level Select",
+	"Start Run",
+	"Practice Levels",
 	"High Scores",
-	"User Settings"
+	"User Settings",
 }, font, 280, 32, 12, 32000)
 
 menu.new("LEVELS_MENU", {
@@ -525,11 +515,17 @@ end
 
 function addOrRenameUser(name)
 	if userData.addOrRenameUser(settings.selectedIndex, name) then
+		local userId = settings.selectedIndex
+		userData.setActiveUser(userId)
 		settings.drawToImage(bgImage, font, fontSmall)
+		gfx.sprite.redrawBackground()
+		sound.play("MENU_SELECT")
 	end
 end
 
 textEntry.textEntryFinishedCallback = addOrRenameUser
+keyboard.textChangedCallback = textEntry.textChanged
+keyboard.keyboardWillHideCallback = textEntry.textEntryFinished
 
 
 function game:updateSettings()
@@ -545,8 +541,6 @@ function game:updateSettings()
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
 		if si == 1 then -- add/rename
-			keyboard.textChangedCallback = textEntry.textChanged
-			keyboard.keyboardWillHideCallback = textEntry.textEntryFinished
 			keyboard.show("")
 			textEntry.setVisible(true)
 		elseif si == 2 then -- delete
@@ -573,8 +567,11 @@ function game:updateSettings()
 			if userData.setActiveUser(userId) then
 				settings.drawToImage(bgImage, font, fontSmall)
 				gfx.sprite.redrawBackground()
-				sound.play("MENU_SELECT")
+			else -- add/rename when hitting A on empty slot
+				keyboard.show("")
+				textEntry.setVisible(true)
 			end
+			sound.play("MENU_SELECT")
 		end
 	end
 end
