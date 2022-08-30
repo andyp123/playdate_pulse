@@ -78,7 +78,7 @@ end
 
 
 function levelSelect.drawToImage(image, font)
-	image:clear(gfx.kColorWhite)
+	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
 
 	-- get constants from stage
@@ -87,7 +87,7 @@ function levelSelect.drawToImage(image, font)
 	local xOffset, yOffset = stage.kScreenOffset + size // 2 + 4, stage.kScreenOffset + 10
 	local tileImages = stage.tileImages
 
-	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 
 	local isEmpty = levelSelect.isStageEmpty
 

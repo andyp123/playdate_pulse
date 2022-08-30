@@ -2,6 +2,9 @@ PULSE TODO
 ----------
 
 HIGH PRIORITY:
+- Editor enabled with dev switch
+  - Also makes the stage menu white and switches levels to data/gamestages.json
+  - Can this just detect if it's running on a device?
 - Practice mode should enable the user to practice all the stages on a row (if their best run reached that row)
 - Force user to create user data on first start?
 - More stages. Currently only ~60, but need 84
@@ -23,7 +26,6 @@ LOW PRIORITY:
 - Intermission screen polish?
 - Practice mode intermission screen should be different somehow
 - Transition should be black?
-- Stage select should be white on black?
 - PDF Manual
 - Selection on level select screen moves when switching modes (could be player?)
 - Stage items still fade weirdly when changing modes sometimes
@@ -31,6 +33,7 @@ LOW PRIORITY:
 - When in editor mode, player sprite should use black as transparent, and maybe flash inverted/invisible
 
 Done
+x Stage select should be white on black
 x Pressing A on empty user data should open rename tool
 x Should switch active user after create/rename?
 x Remove weird clipping on move sound (Audacity can do?)
