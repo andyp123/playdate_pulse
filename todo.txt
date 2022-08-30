@@ -2,27 +2,40 @@ PULSE TODO
 ----------
 
 HIGH PRIORITY:
-- Stage rebalancing for device (make everything way easier!)
-  - could just give more time to finish stages?
-- More stages. Currently only ~50, but need 84
+- Practice mode should enable the user to practice all the stages on a row (if their best run reached that row)
+- Force user to create user data on first start?
+- More stages. Currently only ~60, but need 84
 - Game over screen (using intermission code)
 - Game clear screen (using intermission code)
 - Improved icons for rotate and flip controls (remove dpad, clearer arrows)
-- Key needs more black background for when on top of switches?
+- BUG: Can still move when time runs out, seems like a weird bug...
+  - have reached the exit after time ran out
+  - have moved into a wall too
 
 - Need a better effect when time runs out
 - Need a way to emphasize the last 3 seconds or so. Perhaps use sound, but visual effect helpful
 - Highlight new high scores on the score table after finishing a game
 - A few new sounds. New Stage Record, Hi score entered (should be on table), transition/fade sound
 
+- When stages are done, remove editor from shipping builds/menus
+
 LOW PRIORITY:
 - Intermission screen polish?
+- Practice mode intermission screen should be different somehow
+- Transition should be black?
+- Stage select should be white on black?
 - PDF Manual
+- Selection on level select screen moves when switching modes (could be player?)
 - Stage items still fade weirdly when changing modes sometimes
 - Allow crank input on menus in addition to dpad?
 - When in editor mode, player sprite should use black as transparent, and maybe flash inverted/invisible
 
 Done
+x Pressing A on empty user data should open rename tool
+x Should switch active user after create/rename?
+x Remove weird clipping on move sound (Audacity can do?)
+x Stage rebalancing for device (make everything way easier!)
+x Key needs more black background for when on top of switches?
 x Dummy data needed for userdata file (not users, but runs and stage times)
 x High score screen showing max stage reached, total time taken and number of retries
 x Work on how the level editor is treated. Edit, play, reset. Should be separate to main game
@@ -33,29 +46,11 @@ x Save which stages have been cleared (could just use time?)
 x In between stage screen showing stage #, time taken on prev stage, total time etc. Should be 2 seconds or require button press to advance
   x Stage intro: Stage #, total time, retries?   Prev cleared stage: time taken, best time (new record)
 
-ENTRY POINT:
-title > game: play from start, monitor stage scores
-   - can select to start at the beginning of any stage group (12 stages)
-   - clearing a 12 stage group will unlock the next group entry and save time if < current record
-   - time is measured from the stage group entry until the end of the last stage cleared
-   - game clear time is only saved when starting from stage 1
-stage select > game: play only selected stage, return to stage select, no score monitoring
-edit stage > game: temp store stage data, play stage, return to edit stage, restore saved data
 
-- level select menu
-- user stage editing
-- menu system and menus
-  - stage options (play, edit, delete, duplicate, game/user stages toggle)
-  - title options (see scores, go to stage select)
-  - in game options (back to title, restart zone)
-  - in editor options (play, save, revert, clear filled, clear empty)
-- handle transitions better
-  - title screen and game are white on black, most other screens are black on white
-  - in between stage screen showing current time spent, lives left etc.
-  - game over screen
-  - high scores screen
-- game over state
-- game clear state
+
+
+
+Game Ideas:
 - think about modifications to gameplay... (5-7 modes?)
   x default controls
   - crank forward controls (hold direction and use crank to move forward)
@@ -68,6 +63,8 @@ edit stage > game: temp store stage data, play stage, return to edit stage, rest
 - perhaps move more stuff into the global.lua file?
 - Ally's idea: use crank to rotate key to specific orientation
 - use the crank for anything?
+
+
 
 Sounds Needed:
 The current sounds are taken from the old web version of this game, and were
