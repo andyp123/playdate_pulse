@@ -79,7 +79,8 @@ function titleScreen.drawToImage(image, jitter, jitterScale)
 	gfx.setLineWidth(4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
 	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
-	titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale)
+	-- titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale)
+	titleScreen.drawLogo(200, 48, 68, 8, jitter, jitterScale)
 
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for menu", 200, 130, kTextAlignment.center)
