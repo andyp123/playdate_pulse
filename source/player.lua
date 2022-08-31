@@ -147,7 +147,11 @@ function player:tryMovePassBlock(x, y, mx, my, blocksPassed)
 		local i = xy2i(nx, ny, stage.kWidth)
 		local typeId = self.currentStage.cells[i]
 
-		if my == -1 and typeId == cellTypes.PASSBLOCK_UP then
+		if mx ~= 0 and typeId == cellTypes.PASSBLOCK_HORIZONTAL then
+			self:tryMovePassBlock(nx, ny, mx, 0, blocksPassed + 1)
+		elseif my ~= 0 and typeId == cellTypes.PASSBLOCK_VERTICAL then
+			self:tryMovePassBlock(nx, ny, 0, my, blocksPassed + 1)
+		elseif my == -1 and typeId == cellTypes.PASSBLOCK_UP then
 			self:tryMovePassBlock(nx, ny, 0, -1, blocksPassed + 1)
 		elseif mx == 1 and typeId == cellTypes.PASSBLOCK_RIGHT then
 			self:tryMovePassBlock(nx, ny, 1, 0, blocksPassed + 1)
@@ -179,7 +183,8 @@ function player:tryMoveAndCollect(x, y)
 
 		if typeId == cellTypes.SOLID or typeId == cellTypes.BLOCK_CLOSED or 
 			typeId == cellTypes.PASSBLOCK_UP or typeId == cellTypes.PASSBLOCK_RIGHT or
-			typeId == cellTypes.PASSBLOCK_DOWN or typeId == cellTypes.PASSBLOCK_LEFT then
+			typeId == cellTypes.PASSBLOCK_DOWN or typeId == cellTypes.PASSBLOCK_LEFT or
+			typeId == cellTypes.PASSBLOCK_VERTICAL or typeId == cellTypes.PASSBLOCK_HORIZONTAL then
 			sound.play("MOVE_FAIL")
 			return false
 		elseif typeId == cellTypes.GEM_DOOR then
