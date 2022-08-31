@@ -2,32 +2,36 @@ PULSE TODO
 ----------
 
 HIGH PRIORITY:
-- Editor enabled with dev switch
-  - Also makes the stage menu white and switches levels to data/gamestages.json
-  - Can this just detect if it's running on a device?
-- Practice mode should enable the user to practice all the stages on a row (if their best run reached that row)
-- Force user to create user data on first start?
 - More stages. Currently only ~60, but need 84
+  - When stages are done, remove editor from shipping builds/menus
+- Practice mode should enable the user to practice all the stages on a row (if their best run reached that row)
 - Game over screen (using intermission code)
 - Game clear screen (using intermission code)
+- Editor enabled with dev switch in code
+  - Also makes the stage menu white and switches levels to data/gamestages.json
+  - Can this just detect if it's running on a device?
+- Force user to create user data on first start?
+
+- Need a better effect when time runs out
+- A few new sounds: transition/fade
+- Tweak to direction tiles. Could they be pipes?
+
+
 - BUG: Can still move when time runs out, seems like a weird bug...
   - have reached the exit after time ran out
   - have moved into a wall too
 - BUG: Lives from practice/edit are left over when starting game
-
-- Need a better effect when time runs out
-- Need a way to emphasize the last 3 seconds or so. Perhaps use sound, but visual effect helpful
-- A few new sounds: transition/fade
-
-- When stages are done, remove editor from shipping builds/menus
+- BUG: Once got stuck on intermission screen. No idea why...
+- BUG: Selection on level select screen goes weird when switching modes (could be player?)
+- BUG: Stage items still fade weirdly when changing modes sometimes
 
 LOW PRIORITY:
-- Intermission screen polish?
+- Credits or intro screen? Could be hidden?
+- Manual/How to play screen?
+- Intermission screen polish
 - Practice mode intermission screen should be different somehow
 - Transition should be black?
 - PDF Manual
-- Selection on level select screen moves when switching modes (could be player?)
-- Stage items still fade weirdly when changing modes sometimes
 - Allow crank input on menus in addition to dpad?
 
 DONE:
@@ -54,6 +58,10 @@ x In between stage screen showing stage #, time taken on prev stage, total time 
 
 
 Game Ideas:
+I don't want to do mode modifiers, so instead try to think of additional stage gimmicks:
+- Ice/jump tiles: keep moving in the direction in which the tile was entered
+- 4-way pipe: Same as ice tile, but fits into the existing directional tiles better
+
 - think about modifications to gameplay... (5-7 modes?)
   x default controls
   - crank forward controls (hold direction and use crank to move forward)

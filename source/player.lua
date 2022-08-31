@@ -155,6 +155,8 @@ function player:tryMovePassBlock(x, y, mx, my, blocksPassed)
 			self:tryMovePassBlock(nx, ny, 0, 1, blocksPassed + 1)
 		elseif mx == -1 and typeId == cellTypes.PASSBLOCK_LEFT then
 			self:tryMovePassBlock(nx, ny, -1, 0, blocksPassed + 1)
+		elseif typeId == cellTypes.PASSBLOCK_4WAY then
+			self:tryMovePassBlock(nx, ny, mx, my, blocksPassed + 1)
 		else
 			if self:tryMoveAndCollect(nx, ny) then
 				self:moveTo(nx, ny)

@@ -50,8 +50,9 @@ stage.cellTypes = {
 	PASSBLOCK_RIGHT = 18,
 	PASSBLOCK_DOWN = 19,
 	PASSBLOCK_LEFT = 20,
-	ROTATE_180 = 21,
-	MAX = 21
+	PASSBLOCK_4WAY = 21,
+	ROTATE_180 = 22,
+	MAX = 22
 }
 
 -- Stage data file names
