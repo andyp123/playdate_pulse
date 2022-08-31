@@ -10,15 +10,14 @@ HIGH PRIORITY:
 - More stages. Currently only ~60, but need 84
 - Game over screen (using intermission code)
 - Game clear screen (using intermission code)
-- Improved icons for rotate and flip controls (remove dpad, clearer arrows)
 - BUG: Can still move when time runs out, seems like a weird bug...
   - have reached the exit after time ran out
   - have moved into a wall too
+- BUG: Lives from practice/edit are left over when starting game
 
 - Need a better effect when time runs out
 - Need a way to emphasize the last 3 seconds or so. Perhaps use sound, but visual effect helpful
-- Highlight new high scores on the score table after finishing a game
-- A few new sounds. New Stage Record, Hi score entered (should be on table), transition/fade sound
+- A few new sounds: transition/fade
 
 - When stages are done, remove editor from shipping builds/menus
 
@@ -30,9 +29,10 @@ LOW PRIORITY:
 - Selection on level select screen moves when switching modes (could be player?)
 - Stage items still fade weirdly when changing modes sometimes
 - Allow crank input on menus in addition to dpad?
-- When in editor mode, player sprite should use black as transparent, and maybe flash inverted/invisible
 
-Done
+DONE:
+x Highlight new high scores on the score table after finishing a game
+x Improved icons for rotate and flip controls (remove dpad, clearer arrows)
 x Stage select should be white on black
 x Pressing A on empty user data should open rename tool
 x Should switch active user after create/rename?
@@ -43,7 +43,7 @@ x Dummy data needed for userdata file (not users, but runs and stage times)
 x High score screen showing max stage reached, total time taken and number of retries
 x Work on how the level editor is treated. Edit, play, reset. Should be separate to main game
 x Stage items shouldn't clear until end of fade out
-x Flip controls item (rotate 180) - much easier to understand than 90 degree increments. Rotation can be used from a later stage instead
+x Flip controls item (rotate 180) - much easier to understand than 90 degree increments
 x Save best times for each stage in any play mode (just not when playing from edit stage)
 x Save which stages have been cleared (could just use time?)
 x In between stage screen showing stage #, time taken on prev stage, total time etc. Should be 2 seconds or require button press to advance

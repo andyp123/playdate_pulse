@@ -64,18 +64,20 @@ sound.loadSamples({
 	GET_KEY = "sounds/get_key",
 	GET_CLOCK = "sounds/get_clock",
 	USE_KEY = "sounds/use_key",
-	GET_ROTATE_L = "sounds/get_rotate",
-	GET_ROTATE_R = "sounds/get_rotate", -- TODO: Make sound
-	GET_ROTATE_180 = "sounds/get_rotate", -- TODO: Make sound
+	GET_ROTATE_L = "sounds/get_rotate", -- TODO: Make better sound
+	GET_ROTATE_R = "sounds/get_rotate", -- TODO: Make better sound
+	GET_ROTATE_180 = "sounds/get_rotate",
 	PRESS_SWITCH = "sounds/block_move",
 	GET_HEART = "sounds/get_heart",
 	GET_GEM = "sounds/get_gem",
 	GET_ALL_GEMS = "sounds/get_all_gems",
 	TIME_TICK = "sounds/time_tick",
+	TIME_TICK_2 = "sounds/time_tick_2",
+	TIME_TICK_3 = "sounds/time_tick_3",
 	TIME_OVER = "sounds/time_over",
 	MINE_EXPLODE = "sounds/mine_explode",
 	STAGE_CLEAR = "sounds/stage_clear",
-	-- STAGE_NEW_RECORD = "sounds/stage_new_record", -- TODO: Make sound
+	HISCORE_ENTRY = "sounds/hiscore",
 	CONGRATULATIONS = "sounds/congratulations",
 	MENU_MOVE = "sounds/menu_move_2",
 	MENU_BACK = "sounds/menu_back",
@@ -178,6 +180,7 @@ game.startStageId = 1
 game.livesUsed = 0
 game.prevRecord = 20.0 -- used to store the best time of the previous stage
 game.inPlay = false
+game.practiceMode = false
 
 
 function game:getPlayData()
@@ -188,7 +191,8 @@ function game:getPlayData()
 		currentStage = currentStageIndex,
 		livesRemaining = player1.lives,
 		livesUsed = self.livesUsed,
-		prevRecord = self.prevRecord
+		prevRecord = self.prevRecord,
+		practiveMode = self.practiceMode,
 	}
 	return playData
 end
@@ -203,6 +207,7 @@ function game:resetPlayData()
 	self.startStageId = 1
 	self.livesUsed = 0
 	self.prevRecord = 20.0
+	self.practiceMode = false
 end
 
 
@@ -391,6 +396,7 @@ end
 
 function game:endStageEditModeTesting(failed)
 	player1.editModeEnabled = true
+	self:resetPlayData()
 	self:changeState(STATE_STAGE_PLAY)
 
 	if not failed then
@@ -704,20 +710,32 @@ function game:updateGame()
 		if prevTime > 0 and self.timeRemaining == 0 then
 			self:endStage(true) -- failed: true
 		elseif self.timeRemaining then
-			if math.floor(prevTime) > math.floor(self.timeRemaining) then
-				sound.play("TIME_TICK")
-			end
 			local t = self.timeRemaining % 1
 			local s = self.timeRemaining - t
-			local tlim = 0.5
+			local tlim = 0.5 -- used so we don't redraw the screen every frame
 			jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * clamp(8 - s, 1, 8)
+
+			-- if we just ticked into a new second
+			if math.floor(prevTime) > math.floor(self.timeRemaining) then
+				local tr = self.timeRemaining
+				if tr < 1 then -- 0-1
+					sound.play("TIME_TICK_3")
+					jitterScale += 8
+				elseif tr < 2 then
+					sound.play("TIME_TICK_2")
+					jitterScale += 4
+				else
+					sound.play("TIME_TICK")
+				end
+			end
+
 			if t >= tlim then
 				currentStage:drawToImage(jitterScale)
 				gfx.sprite.redrawBackground()
 			end
-		end
 
-		player1:update()
+			player1:update()
+		end
 
 		if playdate.buttonJustPressed(playdate.kButtonB) then
 			-- These two menus have the same options, but slightly different text
@@ -727,11 +745,12 @@ function game:updateGame()
 				menu.setActiveMenu("PAUSE_MENU")
 			end
 		end
+
 	elseif activeMenu ~= nil then
 		local si = activeMenu:updateAndGetAnySelection()
 		-- si == 1 resumes
 		if si == 2 then
-			currentStage:clear()
+			-- currentStage:clear()
 			if self.editModeTestingStage then
 				player1.editModeEnabled = true
 				game:changeState(STATE_STAGE_PLAY)
@@ -777,7 +796,7 @@ function game:updateEditMode()
 			gfx.sprite.redrawBackground()
 		elseif si == 6 then -- Back to Level Select
 			player1.editModeEnabled = false
-			currentStage:clear() -- TODO: This should be in state change already?
+			-- currentStage:clear() -- TODO: This should be in state change already?
 			game:changeState(STATE_LEVEL_SELECT)
 		end
 	end

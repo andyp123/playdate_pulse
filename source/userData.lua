@@ -31,6 +31,9 @@ userData.userRecords = {}
 userData.runRecords = {}
 userData.activeUserId = 1 -- There must be at least one user record
 
+-- Temporary data
+userData.lastRunRank = 0 -- when non-zero, hiscore will use this to highlight entry
+
 
 function userData.makeUserRecord(name)
 	local stageTimes = table.create(numStages)
@@ -197,6 +200,10 @@ function userData.trySaveGlobalRunRecord(stagesCleared, totalTime, livesUsed)
 		userData.runRecords[numRecords + 1] = record
 		rank = numRecords + 1
 	end
+
+	-- hiscore will use this value to highlight entries and then
+	-- reset the value after it has been used
+	userData.lastRunRank = rank
 
 	return rank
 end

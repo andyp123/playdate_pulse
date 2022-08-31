@@ -6,6 +6,7 @@ import "CoreLibs/sprites"
 -- Pulse
 import "global"
 import "userData"
+import "sound"
 
 local gfx <const> = playdate.graphics
 
@@ -26,6 +27,12 @@ function hiscore.drawToImage(image, font, fontSmall)
 
 	local y = 54
 	local runRecords = userData.runRecords
+
+	local lastRank = userData.lastRunRank -- math.random(1, maxRunsToShow)
+	if lastRank > 0 and lastRank <= maxRunsToShow then
+		sound.play("HISCORE_ENTRY")
+		userData.lastRunRank = 0 -- reset to avoid playing sound every time
+	end
 
 	for i, record in ipairs(runRecords) do
 		if i > maxRunsToShow then break end
@@ -56,6 +63,12 @@ function hiscore.drawToImage(image, font, fontSmall)
 		end
 		iconTable:drawImage(2, x_time - 22, y + 1)
 		iconTable:drawImage(3, x_retries - 22, y + 1)
+
+		-- highlight row
+		if i == lastRank then
+			gfx.setColor(gfx.kColorXOR)
+			gfx.fillRect(10, y-4, 380, 26)
+		end
 
 		y += 30
 	end
