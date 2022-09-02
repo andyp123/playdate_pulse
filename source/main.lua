@@ -87,7 +87,7 @@ sound.loadSamples({
 })
 
 -- Stage
-local gameStageFileName <const> = "data/gamestages"
+local gameStageFileName <const> = "stages/gamestages"
 local currentStage = stage.new()
 local currentStageIndex = 1
 stage.setResources(tileImageTable, spriteImageTable, jitter)
