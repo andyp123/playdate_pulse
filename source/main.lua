@@ -262,7 +262,7 @@ function game:updateTransition()
 	local visible = (math.floor(self.stateTransitionAnimator:currentValue() * 8) > 0)
 	transitionSprite:setVisible(visible)
 	if visible then
-		self:drawTransition(gfx.kDrawModeBlackTransparent)
+		self:drawTransition(gfx.kDrawModeWhiteTransparent)
 	end
 end
 
@@ -276,7 +276,7 @@ function game:drawTransition(drawMode)
 
 	local floor = math.floor
 
-	local t = self.stateTransitionAnimator:currentValue()
+	local t = 1.0 - self.stateTransitionAnimator:currentValue()
 	local frameId = clamp(floor(t * 9), 1, 8)
 	local frameImage = transitionImageTable:getImage(frameId)
 	local tileSize = 32
