@@ -30,23 +30,11 @@ local gameStageFileName = "stages/gamestages"
 if playdate.isSimulator then
 	gameStageFileName = "data/gamestages"
 end
-local isEditorEnabled <const> = true and playdate.isSimulator == 1
+local isEditorEnabled <const> = false and playdate.isSimulator == 1
 levelSelect.isEditorEnabled = isEditorEnabled
 
 -- User Data
 userData.loadDataFromFile()
-
--- States
-local STATE_TITLE <const> = 1
-local STATE_STAGE_PLAY <const> = 2
-local STATE_STAGE_INTERMISSION <const> = 3
-local STATE_LEVEL_SELECT <const> = 4
-local STATE_HISCORE <const> = 5
-local STATE_SETTINGS <const> = 6
-
-local MODE_STANDARD <const> = 1
-local MODE_PRACTICE <const> = 2
-local MODE_PRACTICE_MULTI <const> = 3
 
 -- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
@@ -562,7 +550,7 @@ function game:updateSettings()
 				gfx.sprite.redrawBackground()
 			end
 		elseif si == 3 then -- back to title
-			game:changeState(STATE_TITLE)
+			self:changeState(STATE_TITLE)
 		-- si 4 is a divider
 		elseif si == 5 then -- DELETE ALL DATA
 			userData.init()
@@ -593,7 +581,7 @@ end
 function game:updateHiscore()
 	if not self:inTransition() then
 		if anyButtonJustPressed() or self.timeInState > 15.0 then
-			game:changeState(STATE_TITLE)
+			self:changeState(STATE_TITLE)
 		end		
 	end
 end
@@ -601,25 +589,26 @@ end
 
 function game:updateIntermission()
 	-- STATE_STAGE_INTERMISSION - Between stages
-	-- retry - Lost life. Retry stage
-	-- clear - Finish game
-	-- game_over - All lives gone
-
-	-- elapsed time (total, last stage)
-	-- current stage (show current group and highlight current stage)
-	--   should show start stage of playthrough? e.g. [01] --- [34]
-	-- lives (filled vs empty heart?)
+	-- retry - Lost life. No intermission, just replay
+	-- clear - Finish game. Game over screen
+	-- game_over - All lives gone. Hiscore screen
 
 	-- need to query game state here
 	if not self:inTransition() then
 		if anyButtonJustPressed() or self.timeInState > 5.0 then
-			game:changeState(STATE_STAGE_PLAY)
+			if self.gameMode == MODE_PRACTICE then
+				self:changeState(STATE_LEVEL_SELECT)
+			else
+				self:changeState(STATE_STAGE_PLAY)
+			end
+			
 		end
 	end
 end
 
 
 function game:updateLevelSelect()
+	
 	-- menu update
 	if menu.isMenuActive("LEVELS_MENU") then
 		local m = menu.activeMenu
@@ -629,13 +618,14 @@ function game:updateLevelSelect()
 			self:levelSelectPlayOrEdit(false)
 		elseif si == 2 then -- PLAY FROM HERE / EDIT STAGE
 			if isEditorEnabled then
+				self.gameMode = MODE_PRACTICE
 				self:levelSelectPlayOrEdit(true)
 			else
-				self:levelSelectPlayOrEdit(false)
 				self.gameMode = MODE_PRACTICE_MULTI
+				self:levelSelectPlayOrEdit(false)
 			end
 		elseif si == 3 then
-			game:changeState(STATE_TITLE)
+			self:changeState(STATE_TITLE)
 		end
 	elseif not self:inTransition() then
 		levelSelect.update()
@@ -643,7 +633,8 @@ function game:updateLevelSelect()
 		if playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("LEVELS_MENU")
 		elseif playdate.buttonJustPressed(playdate.kButtonA) then
-			self:levelSelectPlayOrEdit()
+			self.gameMode = MODE_PRACTICE
+			self:levelSelectPlayOrEdit(false)
 			sound.play("MENU_SELECT")
 		end
 	end
@@ -658,7 +649,7 @@ function game:levelSelectPlayOrEdit(isEdit)
 		player1.editModeEnabled = true
 		player1:editModeUpdateType()
 	end
-	game:changeState(STATE_STAGE_PLAY)
+	self:changeState(STATE_STAGE_PLAY)
 end
 
 
@@ -753,8 +744,10 @@ function game:updateGame()
 			-- These two menus have the same options, but slightly different text
 			if self.editModeTestingStage then
 				menu.setActiveMenu("PAUSE_MENU_EDIT")
-			else
+			elseif self.gameMode == MODE_STANDARD then
 				menu.setActiveMenu("PAUSE_MENU")
+			else
+				menu.setActiveMenu("PAUSE_MENU_PRACTICE")
 			end
 		end
 
@@ -762,12 +755,13 @@ function game:updateGame()
 		local si = activeMenu:updateAndGetAnySelection()
 		-- si == 1 resumes
 		if si == 2 then
-			-- currentStage:clear()
 			if self.editModeTestingStage then
 				player1.editModeEnabled = true
-				game:changeState(STATE_STAGE_PLAY)
+				self:changeState(STATE_STAGE_PLAY)
+			elseif self.gameMode == MODE_STANDARD then
+				self:changeState(STATE_TITLE)
 			else
-				game:changeState(STATE_TITLE)
+				self:changeState(STATE_LEVEL_SELECT)
 			end
 		end
 	end
@@ -791,7 +785,7 @@ function game:updateEditMode()
 			currentStage:saveToTemp()
 			self.editModeTestingStage = true
 			player1.editModeEnabled = false
-			game:changeState(STATE_STAGE_PLAY)
+			self:changeState(STATE_STAGE_PLAY)
 		elseif si == 2 then -- Save Stage
 			currentStage:saveToStageData(currentStageIndex)
 		elseif si == 3 then -- Revert Stage
@@ -809,7 +803,7 @@ function game:updateEditMode()
 		elseif si == 6 then -- Back to Level Select
 			player1.editModeEnabled = false
 			-- currentStage:clear() -- TODO: This should be in state change already?
-			game:changeState(STATE_LEVEL_SELECT)
+			self:changeState(STATE_LEVEL_SELECT)
 		end
 	end
 end

@@ -60,8 +60,9 @@ function levelSelect.update()
 	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
 
 	local width = stage.kWidth
+	local numCells = stage.kNumCells
 	local maxStage = numCells
-	if not editorEnabled then
+	if not levelSelect.isEditorEnabled then
 		maxStage = math.floor(1.0 + userData.getActiveUserHighestStageCleared() / width) * width
 		maxStage = clamp(maxStage, width, numCells)
 	end

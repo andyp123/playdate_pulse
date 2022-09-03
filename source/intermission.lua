@@ -26,6 +26,11 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 	local timeString = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
 	local text = string.format("TIME: %s", timeString)
 
+	print(string.format("playData.gameMode: %d", playData.gameMode))
+	if playData.gameMode ~= MODE_STANDARD then
+		text = "PRACTICE MODE"
+	end
+
 	gfx.fillRect(0, 0, 400, 50)
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	font:drawTextAligned(text, xp, yp, kTextAlignment.center)
@@ -51,12 +56,14 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 	end
 
 	-- Current stage
-	tu = getTimeUnits(stageRecord.time)
-	timeString = string.format("%.2d.%.3d", tu.seconds, tu.milliseconds)
-	text = string.format("ENTERING STAGE %.2d", playData.currentStage)
-	font:drawTextAligned(text, xp, yp, kTextAlignment.center)
-	text = string.format("Record: %s  -  %s", timeString, stageRecord.name)
-	fontSmall:drawTextAligned(text, xp, yp + 40, kTextAlignment.center)
+	if playData.gameMode ~= MODE_PRACTICE then
+		tu = getTimeUnits(stageRecord.time)
+		timeString = string.format("%.2d.%.3d", tu.seconds, tu.milliseconds)
+		text = string.format("ENTERING STAGE %.2d", playData.currentStage)
+		font:drawTextAligned(text, xp, yp, kTextAlignment.center)
+		text = string.format("Record: %s  -  %s", timeString, stageRecord.name)
+		fontSmall:drawTextAligned(text, xp, yp + 40, kTextAlignment.center)
+	end
 
 	gfx.unlockFocus()
 end

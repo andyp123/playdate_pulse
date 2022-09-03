@@ -1,3 +1,19 @@
+-- Game constants
+
+-- States
+STATE_TITLE = 1
+STATE_STAGE_PLAY = 2
+STATE_STAGE_INTERMISSION = 3
+STATE_LEVEL_SELECT = 4
+STATE_HISCORE = 5
+STATE_SETTINGS = 6
+
+-- Modes
+MODE_STANDARD = 1
+MODE_PRACTICE = 2
+MODE_PRACTICE_MULTI = 3
+
+
 -- Global helper functions
 
 -- https://stackoverflow.com/questions/2705793/how-to-get-number-of-entries-in-a-lua-table
