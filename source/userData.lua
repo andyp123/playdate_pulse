@@ -247,6 +247,17 @@ function userData.getActiveUserName()
 end
 
 
+function userData.getActiveUserHighestStageCleared()
+	local user = userData.userRecords[userData.activeUserId]
+
+	if user ~= nil and user.bestRun ~= nil then
+		return user.bestRun.stagesCleared
+	end
+
+	return 0
+end
+
+
 -- Mostly useful to check a named user exists
 function userData.getUserIdFromName(name)
 	local userRecords = userData.userRecords

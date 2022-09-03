@@ -57,7 +57,7 @@ stage.cellTypes = {
 	MAX = 24,
 }
 
--- Stage data file names
+-- Stage data file names (for saving only)
 local gameStageFilename <const> = "data/gamestages"
 
 -- Table for stage data loaded from a file

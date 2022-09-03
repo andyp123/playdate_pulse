@@ -216,17 +216,17 @@ function player:tryMoveAndCollect(x, y)
 		elseif typeId == cellTypes.ROTATE_LEFT then
 			self.inputRotation = (self.inputRotation + 3) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("GET_ROTATE_L")
+			sound.play("GET_ROTATE")
 			return true
 		elseif typeId == cellTypes.ROTATE_RIGHT then
 			self.inputRotation = (self.inputRotation + 1) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("GET_ROTATE_R")
+			sound.play("GET_ROTATE")
 			return true
 		elseif typeId == cellTypes.ROTATE_180 then
 			self.inputRotation = (self.inputRotation + 2) % 4
 			self.currentStage:editCell(x, y, cellTypes.EMPTY)
-			sound.play("GET_ROTATE_180")
+			sound.play("GET_ROTATE")
 			return true
 		elseif typeId == cellTypes.SWITCH or typeId == cellTypes.SWITCH_ONCE then
 			-- flip state of blocks to BLOCK_OPEN and vice versa

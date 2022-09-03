@@ -25,16 +25,28 @@ import "settings"
 local gfx <const> = playdate.graphics
 local keyboard <const> = playdate.keyboard
 
--- user data
+-- Stage Data
+local gameStageFileName = "stages/gamestages"
+if playdate.isSimulator then
+	gameStageFileName = "data/gamestages"
+end
+local isEditorEnabled <const> = true and playdate.isSimulator == 1
+levelSelect.isEditorEnabled = isEditorEnabled
+
+-- User Data
 userData.loadDataFromFile()
 
--- state
+-- States
 local STATE_TITLE <const> = 1
 local STATE_STAGE_PLAY <const> = 2
 local STATE_STAGE_INTERMISSION <const> = 3
 local STATE_LEVEL_SELECT <const> = 4
 local STATE_HISCORE <const> = 5
 local STATE_SETTINGS <const> = 6
+
+local MODE_STANDARD <const> = 1
+local MODE_PRACTICE <const> = 2
+local MODE_PRACTICE_MULTI <const> = 3
 
 -- Images
 local tileImageTable = gfx.imagetable.new("images/tiles")
@@ -64,9 +76,7 @@ sound.loadSamples({
 	GET_KEY = "sounds/get_key",
 	GET_CLOCK = "sounds/get_clock",
 	USE_KEY = "sounds/use_key",
-	GET_ROTATE_L = "sounds/get_rotate", -- TODO: Make better sound
-	GET_ROTATE_R = "sounds/get_rotate", -- TODO: Make better sound
-	GET_ROTATE_180 = "sounds/get_rotate",
+	GET_ROTATE = "sounds/get_rotate",
 	PRESS_SWITCH = "sounds/block_move",
 	GET_HEART = "sounds/get_heart",
 	GET_GEM = "sounds/get_gem",
@@ -87,22 +97,21 @@ sound.loadSamples({
 })
 
 -- Stage
-local gameStageFileName <const> = "stages/gamestages"
 local currentStage = stage.new()
 local currentStageIndex = 1
 stage.setResources(tileImageTable, spriteImageTable, jitter)
 stage.drawTarget = bgImage
 
--- player
+-- Player
 player.setResources(currentStage, playerImageTable, spriteImageTable)
 local player1 = player.new()
 
--- time
+-- Time
 -- playdate.display.setRefreshRate(30)
 local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
--- menu test
+-- Menus
 -- font, 260, 32, 12, 32000) -- 6 rows max
 -- fontSmall, 260, 22, 8, 32000) -- 10 rows max
 menu.new("TITLE_MENU", {
@@ -112,29 +121,9 @@ menu.new("TITLE_MENU", {
 	"User Settings",
 }, font, 280, 32, 12, 32000)
 
-menu.new("LEVELS_MENU", {
-	"Play Level",
-	"Edit Level",
-	"Back to Title"
-}, font, 280, 32, 12, 32000)
-
 menu.new("PAUSE_MENU", {
 	"Resume",
 	"Quit to Title"
-}, font, 280, 32, 12, 32000)
-
-menu.new("PAUSE_MENU_EDIT", {
-	"Resume",
-	"Back to Level Edit"
-}, font, 280, 32, 12, 32000)
-
-menu.new("EDIT_MENU", {
-	"Play Level",
-	"Save Level",
-	"Revert Level",
-	"Clear (Filled)",
-	"Clear (Empty)",
-	"Back to Level Select"
 }, font, 280, 32, 12, 32000)
 
 menu.new("SETTINGS_MENU", {
@@ -143,9 +132,40 @@ menu.new("SETTINGS_MENU", {
 	"Back to Title",
 	"---",
 	"Delete ALL Data"
-
 }, font, 280, 32, 12, 32000)
 
+if not isEditorEnabled then
+	menu.new("LEVELS_MENU", {
+		"Play Level",
+		"Play From Here",
+		"Back to Title"
+	}, font, 280, 32, 12, 32000)
+
+	menu.new("PAUSE_MENU_PRACTICE", {
+		"Resume",
+		"Back to Level Select"
+	}, font, 280, 32, 12, 32000)
+else
+	menu.new("LEVELS_MENU", {
+		"Play Level",
+		"Edit Level",
+		"Back to Title"
+	}, font, 280, 32, 12, 32000)
+
+	menu.new("PAUSE_MENU_EDIT", {
+		"Resume",
+		"Back to Level Edit"
+	}, font, 280, 32, 12, 32000)
+
+	menu.new("EDIT_MENU", {
+		"Play Level",
+		"Save Level",
+		"Revert Level",
+		"Clear (Filled)",
+		"Clear (Empty)",
+		"Back to Level Select"
+	}, font, 280, 32, 12, 32000)
+end
 
 -- Helper function for input check
 function anyButtonJustPressed()
@@ -180,7 +200,7 @@ game.startStageId = 1
 game.livesUsed = 0
 game.prevRecord = 20.0 -- used to store the best time of the previous stage
 game.inPlay = false
-game.practiceMode = false
+game.gameMode = MODE_STANDARD
 
 
 function game:getPlayData()
@@ -192,14 +212,13 @@ function game:getPlayData()
 		livesRemaining = player1.lives,
 		livesUsed = self.livesUsed,
 		prevRecord = self.prevRecord,
-		practiveMode = self.practiceMode,
+		gameMode = self.gameMode,
 	}
 	return playData
 end
 
 
 function game:resetPlayData()
-	-- player1.reset()
 	player1.lives = 0
 	self.timeElapsed = 0.0
 	self.timeRemaining = 10.0
@@ -207,7 +226,7 @@ function game:resetPlayData()
 	self.startStageId = 1
 	self.livesUsed = 0
 	self.prevRecord = 20.0
-	self.practiceMode = false
+	self.gameMode = MODE_STANDARD
 end
 
 
@@ -262,20 +281,16 @@ function game:updateTransition()
 	local visible = (math.floor(self.stateTransitionAnimator:currentValue() * 8) > 0)
 	transitionSprite:setVisible(visible)
 	if visible then
-		self:drawTransition(gfx.kDrawModeWhiteTransparent)
+		self:drawTransition()
 	end
 end
 
 
-function game:drawTransition(drawMode)
-	if drawMode ~= nil then
-		transitionSprite:setImageDrawMode(drawMode)
-	end
-
+function game:drawTransition()
 	gfx.lockFocus(transitionImage)
-
 	local floor = math.floor
 
+	transitionSprite:setImageDrawMode(gfx.kDrawModeWhiteTransparent)
 	local t = 1.0 - self.stateTransitionAnimator:currentValue()
 	local frameId = clamp(floor(t * 9), 1, 8)
 	local frameImage = transitionImageTable:getImage(frameId)
@@ -321,7 +336,8 @@ function game:handleStateEntry()
 		self.inPlay = true
 		gfx.sprite.redrawBackground()
 	elseif state == STATE_LEVEL_SELECT then
-		levelSelect.drawToImage(bgImage, fontSmall)
+		player1.lives = 0 -- hacky...
+		levelSelect.drawToImage(bgImage, fontSmall, isEditorEnabled)
 		levelSelect.setCursorVisible(true)
 	elseif state == STATE_STAGE_INTERMISSION then
 		local playData = self:getPlayData()
@@ -336,73 +352,64 @@ end
 
 
 function game:endStage(failed)
-	if self.editModeTestingStage then
-		return self:endStageEditModeTesting(failed)
-	end
-
-	-- prevent this from being triggered twice
+	-- Shouldn't happen, but prevent this from being triggered twice
 	if not self.inPlay then return end
 	self.inPlay = false
 
-	local userName = userData.getActiveUserName()
-
-	if failed then
-		if self.timeRemaining <= 0 then
-			sound.play("TIME_OVER")
-		end -- else player died
-
-		if player1.lives > 0 then -- RETRY STAGE
-			-- reload the level
-			player1.lives = 0
-			self.livesUsed += 1
-			self:changeState(STATE_STAGE_PLAY)
-		else -- GAME OVER
-			if self.startStageId == 1 then
-				userData.trySaveRunRecord(currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
-				self:changeState(STATE_HISCORE)
-			else
-				self:changeState(STATE_TITLE)
-			end
-
-			currentStageIndex = 1
-		end
-	else
-		sound.play("STAGE_CLEAR")
-		local numStages = stage.getNumStages()
-
-		-- Try to save stage record
-		local record = userData.getStageTimeRecord(currentStageIndex)
-		self.prevRecord = record.time -- need to store this for intermission screen!
-		userData.trySaveStageTime(currentStageIndex, userName, self.timeElapsed)
-
-		if currentStageIndex + 1 > numStages then -- GAME CLEAR
-			if self.startStageId == 1 then
-				userData.trySaveRunRecord(currentStageIndex - 1, self.totalTimeElapsed, self.livesUsed)
-				self:changeState(STATE_HISCORE)
-			else
-				self:changeState(STATE_TITLE)
-			end
-
-			currentStageIndex = 1
-		else -- ADVANCE TO NEXT STAGE
-			currentStageIndex += 1
-			self:changeState(STATE_STAGE_INTERMISSION)
-		end
-	end
-
-
-end
-
-
-function game:endStageEditModeTesting(failed)
-	player1.editModeEnabled = true
-	self:resetPlayData()
-	self:changeState(STATE_STAGE_PLAY)
-
+	-- Play sounds
 	if not failed then
 		sound.play("STAGE_CLEAR")
 	elseif self.timeRemaining <= 0 then
 		sound.play("TIME_OVER")
+	end
+
+	-- Retry the stage if the player has more lives remaining
+	if failed and player1.lives > 0 then
+		player1.lives = 0
+		self.livesUsed += 1
+		self:changeState(STATE_STAGE_PLAY)
+		return
+	end
+
+	-- If we are just testing the stage, go back into edit mode
+	if self.editModeTestingStage then
+		player1.editModeEnabled = true
+		self:resetPlayData()
+		self:changeState(STATE_STAGE_PLAY)
+		return
+	end
+
+	local userName = userData.getActiveUserName()
+	local numStages = stage.getNumStages()
+
+	if not failed then
+		-- Try to save stage record (even in practice mode)
+		local record = userData.getStageTimeRecord(currentStageIndex)
+		self.prevRecord = record.time -- need to store this for intermission screen!
+		userData.trySaveStageTime(currentStageIndex, userName, self.timeElapsed)
+
+		-- If there are more stages, advance to next stage and return
+		if currentStageIndex + 1 <= numStages then
+			currentStageIndex += 1
+			self:changeState(STATE_STAGE_INTERMISSION)
+			return
+		end
+	end
+
+	-- Game over / Game clear
+	if self.gameMode == MODE_STANDARD then
+		if self.startStageId == 1 then
+			local lastStageCleared = currentStageIndex
+			if failed then lastStageCleared -= 1 end
+
+			-- Save record of the run when the game ends
+			userData.trySaveRunRecord(lastStageCleared, self.totalTimeElapsed, self.livesUsed)
+		end
+
+		currentStageIndex = 1
+		self:changeState(STATE_HISCORE)
+	else
+		self:changeState(STATE_LEVEL_SELECT)
 	end
 end
 
@@ -617,19 +624,24 @@ function game:updateLevelSelect()
 	if menu.isMenuActive("LEVELS_MENU") then
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
-		if si == 1 or si == 2 then -- PLAY / EDIT
-			local isEdit = (si == 2)
-			self:levelSelectPlayOrEdit(isEdit)
+		if si == 1 then -- PLAY (SINGLE)
+			self.gameMode = MODE_PRACTICE
+			self:levelSelectPlayOrEdit(false)
+		elseif si == 2 then -- PLAY FROM HERE / EDIT STAGE
+			if isEditorEnabled then
+				self:levelSelectPlayOrEdit(true)
+			else
+				self:levelSelectPlayOrEdit(false)
+				self.gameMode = MODE_PRACTICE_MULTI
+			end
 		elseif si == 3 then
 			game:changeState(STATE_TITLE)
 		end
 	elseif not self:inTransition() then
-		-- levelSelect.setCursorVisible(true)
 		levelSelect.update()
 
 		if playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("LEVELS_MENU")
-			-- levelSelect.setCursorVisible(false)
 		elseif playdate.buttonJustPressed(playdate.kButtonA) then
 			self:levelSelectPlayOrEdit()
 			sound.play("MENU_SELECT")
@@ -642,7 +654,7 @@ function game:levelSelectPlayOrEdit(isEdit)
 	levelSelect.setCursorVisible(false)
 	currentStageIndex = levelSelect.selectedIndex
 	self.startStageId = currentStageIndex
-	if isEdit or currentStageIndex > stage.getNumStages() then
+	if isEdit == true then
 		player1.editModeEnabled = true
 		player1:editModeUpdateType()
 	end
@@ -688,7 +700,7 @@ function game:updateTitle()
 		elseif playdate.buttonJustPressed(playdate.kButtonB) then
 			menu.setActiveMenu("TITLE_MENU")
 		end
-		-- Show best runs screen after a delay?
+		-- Show best runs screen after a delay
 		if self.timeInState > 30.0 then
 			self:changeState(STATE_HISCORE)
 		end

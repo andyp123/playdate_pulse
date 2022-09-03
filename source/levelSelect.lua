@@ -7,11 +7,14 @@ import "CoreLibs/sprites"
 import "global"
 import "stage" -- need constants from here
 import "sound"
+import "userData"
 
 local gfx <const> = playdate.graphics
 
 levelSelect = {}
 levelSelect.__index = levelSelect
+
+levelSelect.isEditorEnabled = false
 
 
 function levelSelect.init()
@@ -56,15 +59,22 @@ function levelSelect.update()
 	if playdate.buttonJustPressed(playdate.kButtonUp)    then my = -1 end
 	if playdate.buttonJustPressed(playdate.kButtonDown)  then my = 1 end
 
+	local width = stage.kWidth
+	local maxStage = numCells
+	if not editorEnabled then
+		maxStage = math.floor(1.0 + userData.getActiveUserHighestStageCleared() / width) * width
+		maxStage = clamp(maxStage, width, numCells)
+	end
+
 	-- testing a different cursor movement for menus
 	if mx ~= 0 or my ~= 0 then
-		local i = xy2i(cursor.x, cursor.y, stage.kWidth)
+		local i = xy2i(cursor.x, cursor.y, width)
 		local ni = i
 		ni += mx
-		ni += my * stage.kWidth
-		ni = clamp(ni, 1, clamp(stage.getNumStages() + 1, 1, stage.kNumCells))
+		ni += my * width
+		ni = clamp(ni, 1, maxStage)
 		if ni ~= i then
-			local x, y = i2xy(ni, stage.kWidth)
+			local x, y = i2xy(ni, width)
 			cursor.x = x
 			cursor.y = y
 			cursor.updatePosition()
@@ -78,7 +88,15 @@ end
 
 
 function levelSelect.drawToImage(image, font)
-	image:clear(gfx.kColorBlack)
+	local editorEnabled = levelSelect.isEditorEnabled
+	local bgColor = gfx.kColorBlack
+	local fgColor = gfx.kDrawModeFillWhite
+	if editorEnabled == true then
+		bgColor = gfx.kColorWhite
+		fgColor = gfx.kDrawModeFillBlack
+	end
+
+	image:clear(bgColor)
 	gfx.lockFocus(image)
 
 	-- get constants from stage
@@ -87,23 +105,27 @@ function levelSelect.drawToImage(image, font)
 	local xOffset, yOffset = stage.kScreenOffset + size // 2 + 4, stage.kScreenOffset + 10
 	local tileImages = stage.tileImages
 
-	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	gfx.setImageDrawMode(fgColor)
 
 	local isEmpty = levelSelect.isStageEmpty
+	local maxStage = numCells
+	if not editorEnabled then
+		maxStage = math.floor(1.0 + userData.getActiveUserHighestStageCleared() / width) * width
+		maxStage = clamp(maxStage, width, numCells)
+	end
 
-	local numStages = clamp(stage.getNumStages(), 0, numCells)
-	local cnt = clamp(numStages + 1, 1, numCells)
-	for i = 1, cnt do
+	for i = 1, numCells do
 		local x, y = i2xy0(i, width)
 		local xp = x * size + xOffset
 		local yp = y * size + yOffset
 
-		local text = string.format("%d", i)
-		-- FIXME: Probably slow and needs removing
-		if isEmpty(i) then
-			text = "+"
+		local text = "-"
+		if i <= maxStage then
+			text = string.format("%d", i)
+			if editorEnabled and isEmpty(i) then
+				text = "+"
+			end
 		end
-		if i > numStages then text = "+" end
 		font:drawTextAligned(text, xp, yp, kTextAlignment.center)
 	end
 
@@ -111,9 +133,7 @@ function levelSelect.drawToImage(image, font)
 end
 
 
-
--- FIXME: This is just used to help me see which levels are empty
--- Should probably be removed
+-- Level is empty if all cells are same type
 function levelSelect.isStageEmpty(stageIndex)
 	if stageIndex >= 1 and stageIndex <= stage.getNumStages() then
 		local stageData = stage.stageData
