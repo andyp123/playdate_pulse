@@ -26,7 +26,6 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 	local timeString = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
 	local text = string.format("TIME: %s", timeString)
 
-	print(string.format("playData.gameMode: %d", playData.gameMode))
 	if playData.gameMode ~= MODE_STANDARD then
 		text = "PRACTICE MODE"
 	end
