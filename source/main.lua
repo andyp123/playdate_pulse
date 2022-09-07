@@ -114,6 +114,12 @@ menu.new("PAUSE_MENU", {
 	"Quit to Title"
 }, font, 280, 32, 12, 32000)
 
+menu.new("PAUSE_MENU_PRACTICE", {
+	"Resume",
+	"Restart",
+	"Back to Level Select"
+}, font, 280, 32, 12, 32000)
+
 menu.new("SETTINGS_MENU", {
 	"Rename User",
 	"Delete User",
@@ -129,10 +135,6 @@ if not isEditorEnabled then
 		"Back to Title"
 	}, font, 280, 32, 12, 32000)
 
-	menu.new("PAUSE_MENU_PRACTICE", {
-		"Resume",
-		"Back to Level Select"
-	}, font, 280, 32, 12, 32000)
 else
 	menu.new("LEVELS_MENU", {
 		"Play Level",
@@ -679,6 +681,15 @@ function game:updateTitle()
 		if si == 1 then
 			self:changeState(STATE_STAGE_INTERMISSION)
 		elseif si == 2 then
+			-- Level Select unlock cheat
+			local crankPos = playdate.getCrankPosition()
+			if crankPos > 260 and crankPos < 280
+			  and playdate.buttonIsPressed(playdate.kButtonUp)
+			  and not levelSelect.isPlayAllCheatEnabled then
+			  	sound.play("GET_ALL_GEMS")
+			  	levelSelect.isPlayAllCheatEnabled = true
+			end
+
 			self:changeState(STATE_LEVEL_SELECT)
 		elseif si == 3 then
 			self:changeState(STATE_HISCORE)
@@ -741,7 +752,7 @@ function game:updateGame()
 		end
 
 		if playdate.buttonJustPressed(playdate.kButtonB) then
-			-- These two menus have the same options, but slightly different text
+			-- Pause menu has some variations depending on mode etc.
 			if self.editModeTestingStage then
 				menu.setActiveMenu("PAUSE_MENU_EDIT")
 			elseif self.gameMode == MODE_STANDARD then
@@ -760,9 +771,12 @@ function game:updateGame()
 				self:changeState(STATE_STAGE_PLAY)
 			elseif self.gameMode == MODE_STANDARD then
 				self:changeState(STATE_TITLE)
-			else
-				self:changeState(STATE_LEVEL_SELECT)
+			else -- restart stage
+				player1.lives = 0
+				self:changeState(STATE_STAGE_PLAY)
 			end
+		elseif si == 3 then -- practice mode
+			self:changeState(STATE_LEVEL_SELECT)
 		end
 	end
 end

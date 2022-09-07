@@ -15,6 +15,7 @@ levelSelect = {}
 levelSelect.__index = levelSelect
 
 levelSelect.isEditorEnabled = false
+levelSelect.isPlayAllCheatEnabled = false
 
 
 function levelSelect.init()
@@ -62,7 +63,7 @@ function levelSelect.update()
 	local width = stage.kWidth
 	local numCells = stage.kNumCells
 	local maxStage = numCells
-	if not levelSelect.isEditorEnabled then
+	if not levelSelect.isEditorEnabled and not levelSelect.isPlayAllCheatEnabled then
 		maxStage = math.floor(1.0 + userData.getActiveUserHighestStageCleared() / width) * width
 		maxStage = clamp(maxStage, width, numCells)
 	end
@@ -110,7 +111,7 @@ function levelSelect.drawToImage(image, font)
 
 	local isEmpty = levelSelect.isStageEmpty
 	local maxStage = numCells
-	if not editorEnabled then
+	if not editorEnabled and not levelSelect.isPlayAllCheatEnabled then
 		maxStage = math.floor(1.0 + userData.getActiveUserHighestStageCleared() / width) * width
 		maxStage = clamp(maxStage, width, numCells)
 	end
