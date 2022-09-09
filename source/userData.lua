@@ -247,6 +247,17 @@ function userData.getActiveUserName()
 end
 
 
+function userData.isValidUserId(userId)
+	local user = userData.userRecords[userId]
+
+	if user == nil or user.name == nil then
+		return false
+	end
+
+	return true
+end
+
+
 function userData.getActiveUserHighestStageCleared()
 	local user = userData.userRecords[userData.activeUserId]
 

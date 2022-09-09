@@ -6,7 +6,6 @@ import "CoreLibs/sprites"
 -- Pulse
 import "global"
 import "stage" -- need constants from here
-import "sound"
 import "userData"
 
 local gfx <const> = playdate.graphics
@@ -67,3 +66,30 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 	gfx.unlockFocus()
 end
 
+
+function intermission.drawGameClear(image, font, fontSmall, playData)
+	image:clear(gfx.kColorWhite)
+	gfx.lockFocus(image)
+
+	-- Total elapsed time
+	local xp, yp = 200, 10
+	local stageRecord = userData.getStageTimeRecord(playData.currentStage)
+	local tu = getTimeUnits(playData.totalTime)
+	local timeString = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
+	local text = string.format("TIME: %s", timeString)
+
+	if playData.gameMode ~= MODE_STANDARD then
+		text = "YOU WIN!"
+	end
+
+	gfx.fillRect(0, 0, 400, 50)
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	font:drawTextAligned(text, xp, yp, kTextAlignment.center)
+
+	yp = 65
+	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+
+
+
+	gfx.unlockFocus()
+end

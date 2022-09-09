@@ -1,3 +1,5 @@
+-- Pulse, Copyright 2022 Andrew Palmer
+
 -- Playdate SDK
 import "CoreLibs/object"
 import "CoreLibs/graphics"
@@ -191,6 +193,7 @@ game.livesUsed = 0
 game.prevRecord = 20.0 -- used to store the best time of the previous stage
 game.inPlay = false
 game.gameMode = MODE_STANDARD
+game.gameClear = false
 
 
 function game:getPlayData()
@@ -203,12 +206,13 @@ function game:getPlayData()
 		livesUsed = self.livesUsed,
 		prevRecord = self.prevRecord,
 		gameMode = self.gameMode,
+		gameClear = self.gameClear,
 	}
 	return playData
 end
 
 
-function game:resetPlayData()
+function game:resetPlayData(keepStageIndex)
 	player1.lives = 0
 	self.timeElapsed = 0.0
 	self.timeRemaining = 10.0
@@ -217,6 +221,11 @@ function game:resetPlayData()
 	self.livesUsed = 0
 	self.prevRecord = 20.0
 	self.gameMode = MODE_STANDARD
+	self.gameClear = false
+
+	if keepStageIndex ~= true then
+		currentStageIndex = 1
+	end
 end
 
 
@@ -299,8 +308,6 @@ function game:drawTransition()
 end
 
 
-
-
 -------------------------------------------------------------------------------
 -- GAME UPDATE FUNCTIONS ------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -313,20 +320,19 @@ function game:handleStateEntry()
 	-- handle specific state functions
 	local state = self.currentState
 	if state == STATE_TITLE then
+		player1.editModeEnabled = false
+		self:resetPlayData()
 		-- without this, the stage background will continue to be drawn for a short while
 		titleScreen.drawToImage(bgImage, jitter, 0)
-		player1.editModeEnabled = false
-		currentStageIndex = 1
-		self:resetPlayData() -- make sure previous session data is cleared
 	elseif state == STATE_STAGE_PLAY then
-		player1:reset()
+		player1:reset() -- No full reset in case we are changing stages
 		loadStage(currentStageIndex)
-		self.timeRemaining = currentStage.time
+		self.timeRemaining = 10.0
 		self.timeElapsed = 0.0
 		self.inPlay = true
 		gfx.sprite.redrawBackground()
 	elseif state == STATE_LEVEL_SELECT then
-		player1.lives = 0 -- hacky...
+		self:resetPlayData()
 		levelSelect.drawToImage(bgImage, fontSmall, isEditorEnabled)
 		levelSelect.setCursorVisible(true)
 	elseif state == STATE_STAGE_INTERMISSION then
@@ -337,6 +343,12 @@ function game:handleStateEntry()
 	elseif state == STATE_SETTINGS then
 		settings.drawToImage(bgImage, font, fontSmall)
 		settings.setCursorVisible(true)
+	elseif state == STATE_GAME_CLEAR then
+		local playData = self:getPlayData()
+		intermission.drawGameClear(image, font, fontSmall, playData)
+		sound.play("CONGRATULATIONS")
+	else
+		print(string.format("Error: Unknown game state '%d'", state))
 	end
 end
 
@@ -364,39 +376,42 @@ function game:endStage(failed)
 	-- If we are just testing the stage, go back into edit mode
 	if self.editModeTestingStage then
 		player1.editModeEnabled = true
-		self:resetPlayData()
+		self:resetPlayData(true)
 		self:changeState(STATE_STAGE_PLAY)
 		return
 	end
 
 	local userName = userData.getActiveUserName()
 	local numStages = stage.getNumStages()
+	local lastStageCleared = currentStageIndex
 
+	-- Try to save stage record (even in practice mode)
 	if not failed then
-		-- Try to save stage record (even in practice mode)
 		local record = userData.getStageTimeRecord(currentStageIndex)
 		self.prevRecord = record.time -- need to store this for intermission screen!
 		userData.trySaveStageTime(currentStageIndex, userName, self.timeElapsed)
 
-		-- If there are more stages, advance to next stage and return
-		if currentStageIndex + 1 <= numStages then
-			currentStageIndex += 1
-			self:changeState(STATE_STAGE_INTERMISSION)
-			return
-		end
+		currentStageIndex = clamp(currentStageIndex + 1, 1, numStages)
+	else
+		lastStageCleared -= 1
 	end
 
-	-- Game over / Game clear
+	-- Try to save run record (standard mode only)
+	local isRun = self.gameMode == MODE_STANDARD and self.startStageId == 1 and lastStageCleared > 0
+	local saveRun = isRun and (failed or lastStageCleared == numStages)
+	self.gameClear = isRun and lastStageCleared == numStages
+	
+	if saveRun then
+		userData.trySaveRunRecord(lastStageCleared, self.totalTimeElapsed, self.livesUsed)
+	end
+
+	-- Change state
+	if not failed then
+		self:changeState(STATE_STAGE_INTERMISSION)
+		return
+	end
+
 	if self.gameMode == MODE_STANDARD then
-		if self.startStageId == 1 then
-			local lastStageCleared = currentStageIndex
-			if failed then lastStageCleared -= 1 end
-
-			-- Save record of the run when the game ends
-			userData.trySaveRunRecord(lastStageCleared, self.totalTimeElapsed, self.livesUsed)
-		end
-
-		currentStageIndex = 1
 		self:changeState(STATE_HISCORE)
 	else
 		self:changeState(STATE_LEVEL_SELECT)
@@ -424,6 +439,10 @@ function game:update()
 		self:updateHiscore()
 	elseif state == STATE_SETTINGS then
 		self:updateSettings()
+	elseif state == STATE_GAME_CLEAR then
+		self:updateGameClear()
+	else
+		print(string.format("Error: Unknown game state '%d'", state))
 	end
 
 	self:updateTransition()
@@ -570,12 +589,23 @@ function game:updateSettings()
 			if userData.setActiveUser(userId) then
 				settings.drawToImage(bgImage, font, fontSmall)
 				gfx.sprite.redrawBackground()
-			else -- add/rename when hitting A on empty slot
+				sound.play("MENU_SELECT")
+			elseif not userData.isValidUserId(userId) then
+				-- add/rename when hitting A on empty slot
 				keyboard.show("")
 				textEntry.setVisible(true)
+				sound.play("MENU_SELECT")
 			end
-			sound.play("MENU_SELECT")
 		end
+	end
+end
+
+
+function game:updateGameClear()
+	if not self:inTransition() then
+		if anyButtonJustPressed() or self.timeInState > 15.0 then
+			self:changeState(STATE_TITLE)
+		end		
 	end
 end
 
@@ -598,19 +628,22 @@ function game:updateIntermission()
 	-- need to query game state here
 	if not self:inTransition() then
 		if anyButtonJustPressed() or self.timeInState > 5.0 then
+			if self.gameClear then
+				self:changeState(STATE_GAME_CLEAR)
+				return
+			end
+
 			if self.gameMode == MODE_PRACTICE then
 				self:changeState(STATE_LEVEL_SELECT)
 			else
 				self:changeState(STATE_STAGE_PLAY)
 			end
-			
 		end
 	end
 end
 
 
 function game:updateLevelSelect()
-	
 	-- menu update
 	if menu.isMenuActive("LEVELS_MENU") then
 		local m = menu.activeMenu
