@@ -35,6 +35,23 @@ userData.activeUserId = 1 -- There must be at least one user record
 userData.lastRunRank = 0 -- when non-zero, hiscore will use this to highlight entry
 
 
+function userData.onlyDefaultUserExists()
+	local validRecords = 0
+	for i = 1, maxUserRecords do
+		if userData.isValidUserId(i) then
+			validRecords += 1
+		end
+	end
+
+	if validRecords == 1 and userData.activeUserId == 1
+	  and userData.getActiveUserName() == defaultUserName then
+		return true
+	end
+
+	return false
+end
+
+
 function userData.makeUserRecord(name)
 	local stageTimes = table.create(numStages)
 	for i = 1, numStages do

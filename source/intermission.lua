@@ -15,11 +15,11 @@ intermission.__index = intermission
 
 
 function intermission.drawToImage(image, font, fontSmall, playData)
-	image:clear(gfx.kColorWhite)
+	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
 
 	-- Total elapsed time
-	local xp, yp = 200, 10
+	local xp, yp = 200, 14
 	local stageRecord = userData.getStageTimeRecord(playData.currentStage)
 	local tu = getTimeUnits(playData.totalTime)
 	local timeString = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
@@ -30,31 +30,34 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 		text = "PRACTICE MODE"
 	end
 
-	gfx.fillRect(0, 0, 400, 50)
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	font:drawTextAligned(text, xp, yp, kTextAlignment.center)
 
-	yp = 65
-	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+	yp = 60
 
 	-- Previous stage
 	if playData.startStage < playData.currentStage then
-		gfx.setLineWidth(3)
-		gfx.drawRect(15, yp, 370, 80)
+		gfx.setColor(gfx.kColorWhite)
+		gfx.fillRect(15, yp, 370, 85)
+		gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+
 		tu = getTimeUnits(playData.stageTime)
 		timeString = string.format("%.2d.%.3d", tu.seconds, tu.milliseconds)
 		tu = getTimeUnits(playData.stageTime - playData.prevRecord)
 		local timeDiffString = string.format("%s%d.%.3d", tu.sign, tu.seconds, tu.milliseconds)
 		local newRecordString = ""
 		if playData.stageTime - playData.prevRecord < 0 then
-			newRecordString = "\n> NEW STAGE RECORD <"
+			newRecordString = "\nNEW STAGE RECORD!"
 		end
-		text = string.format("STAGE %.2d CLEAR\n%s (%s)%s", playData.currentStage - 1, timeString, timeDiffString, newRecordString)
-		fontSmall:drawTextAligned(text, xp, yp + 10, kTextAlignment.center)
-		yp += 100
+		text = string.format("STAGE %.2d CLEAR", playData.currentStage - 1)
+		font:drawTextAligned(text, xp, yp + 4, kTextAlignment.center)
+		text = string.format("%s (%s)%s", timeString, timeDiffString, newRecordString)
+		fontSmall:drawTextAligned(text, xp, yp + 37, kTextAlignment.center)
+		yp += 105
 	end
 
 	-- Current stage
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	if playData.gameMode == MODE_STANDARD and playData.gameClear then
 		text = "All stages clear. You win!"
 		font:drawTextAligned(text, xp, yp + 10, kTextAlignment.center)

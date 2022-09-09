@@ -23,6 +23,7 @@ import "intermission"
 import "userData"
 import "hiscore"
 import "settings"
+import "textEntry"
 
 local gfx <const> = playdate.graphics
 local keyboard <const> = playdate.keyboard
@@ -58,6 +59,11 @@ local jitter = jitterTable.new((stage.kWidth + 1) * (stage.kHeight + 1))
 local font = gfx.font.new("fonts/Roobert-20-Medium")
 local fontSmall = gfx.font.new("fonts/Roobert-11-Medium")
 gfx.setFont(font)
+
+-- Text entry and keyboard
+textEntry.init(fontSmall)
+keyboard.textChangedCallback = textEntry.textChanged
+keyboard.keyboardWillHideCallback = textEntry.textEntryFinished
 
 -- Sounds
 sound.loadSamples({
@@ -106,7 +112,7 @@ local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 -- fontSmall, 260, 22, 8, 32000) -- 10 rows max
 menu.new("TITLE_MENU", {
 	"Start Run",
-	"Practice Levels",
+	"Practice Mode",
 	"High Scores",
 	"User Settings",
 }, font, 280, 32, 12, 32000)
@@ -119,7 +125,7 @@ menu.new("PAUSE_MENU", {
 menu.new("PAUSE_MENU_PRACTICE", {
 	"Resume",
 	"Restart",
-	"Back to Level Select"
+	"Back to Stage Select"
 }, font, 280, 32, 12, 32000)
 
 menu.new("SETTINGS_MENU", {
@@ -132,30 +138,30 @@ menu.new("SETTINGS_MENU", {
 
 if not isEditorEnabled then
 	menu.new("LEVELS_MENU", {
-		"Play Level",
+		"Play Stage",
 		"Play From Here",
 		"Back to Title"
 	}, font, 280, 32, 12, 32000)
 
 else
 	menu.new("LEVELS_MENU", {
-		"Play Level",
-		"Edit Level",
+		"Play Stage",
+		"Edit Stage",
 		"Back to Title"
 	}, font, 280, 32, 12, 32000)
 
 	menu.new("PAUSE_MENU_EDIT", {
 		"Resume",
-		"Back to Level Edit"
+		"Back to Stage Edit"
 	}, font, 280, 32, 12, 32000)
 
 	menu.new("EDIT_MENU", {
-		"Play Level",
-		"Save Level",
-		"Revert Level",
+		"Play Stage",
+		"Save Stage",
+		"Revert Stage",
 		"Clear (Filled)",
 		"Clear (Empty)",
-		"Back to Level Select"
+		"Back to Stage Select"
 	}, font, 280, 32, 12, 32000)
 end
 
@@ -341,6 +347,7 @@ function game:handleStateEntry()
 	elseif state == STATE_HISCORE then
 		hiscore.drawToImage(bgImage, font, fontSmall)
 	elseif state == STATE_SETTINGS then
+		textEntry.textEntryFinishedCallback = addOrRenameUser
 		settings.drawToImage(bgImage, font, fontSmall)
 		settings.setCursorVisible(true)
 	elseif state == STATE_GAME_CLEAR then
@@ -450,105 +457,7 @@ function game:update()
 end
 
 
--- NAME EDITING STUFF 
--- TODO: Move elsewhere
-local textEntry = {}
 
-function textEntry.init()
-	textEntry.image = gfx.image.new(250, 240, gfx.kColorBlack)
-	textEntry.sprite = gfx.sprite.new(textEntry.image)
-	textEntry.sprite:setCenter(0, 0)
-	textEntry.sprite:moveTo(0, 0)
-	textEntry.sprite:setVisible(false)
-	textEntry.sprite:add()
-
-	textEntry.textEntryFinishedCallback = nil
-end
-
-textEntry.init()
-
-
-function textEntry.refreshSpriteImage(font)
-	textEntry.image:clear(gfx.kColorBlack)
-	gfx.lockFocus(textEntry.image)
-
-	local x, y = 20, 50
-
-	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	font:drawText("Enter a name:\n", x, y)
-
-	y += 32
-	gfx.setColor(gfx.kColorWhite)
-	gfx.fillRect(x, y, 130, 40)
-
-	if keyboard.text ~= "" then
-		gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
-		font:drawText(keyboard.text, x + 10, y + 10)
-	end
-
-
-	gfx.unlockFocus()
-
-	-- Force sprite to refresh
-	textEntry.sprite:markDirty()
-end
-
-
-function textEntry.setVisible(visible)
-	textEntry.sprite:setVisible(visible)
-
-	if visible then
-		textEntry.refreshSpriteImage(fontSmall)
-	end
-end
-
-
-function textEntry.getValidatedText(text, maxWidth, font)
-	-- Allow all alphanumeric chars, space and _
-	text = string.gsub(text, "[^%w _]+", "")
-
-	-- Set a maximum display width
-	if font ~= nil then
-		while font:getTextWidth(text) > maxWidth do
-			text = string.sub(text, 1, string.len(text) - 1)
-		end
-	end
-
-	return text
-end
-
-
-function textEntry.textChanged()
-	textEntry.sprite:setVisible(true)
-	keyboard.text = textEntry.getValidatedText(keyboard.text, 100, fontSmall)
-	textEntry.refreshSpriteImage(fontSmall)
-end
-
-
-function textEntry.textEntryFinished(ok)
-	textEntry.setVisible(false)
-
-	if ok and textEntry.textEntryFinishedCallback ~= nil then
-		textEntry.textEntryFinishedCallback(keyboard.text)
-	end
-
-	gfx.sprite.redrawBackground()
-end
-
-
-function addOrRenameUser(name)
-	if userData.addOrRenameUser(settings.selectedIndex, name) then
-		local userId = settings.selectedIndex
-		userData.setActiveUser(userId)
-		settings.drawToImage(bgImage, font, fontSmall)
-		gfx.sprite.redrawBackground()
-		sound.play("MENU_SELECT")
-	end
-end
-
-textEntry.textEntryFinishedCallback = addOrRenameUser
-keyboard.textChangedCallback = textEntry.textChanged
-keyboard.keyboardWillHideCallback = textEntry.textEntryFinished
 
 
 function game:updateSettings()
@@ -564,7 +473,7 @@ function game:updateSettings()
 		local m = menu.activeMenu
 		local si = m:updateAndGetAnySelection()
 		if si == 1 then -- add/rename
-			keyboard.show("")
+			-- keyboard.show("")
 			textEntry.setVisible(true)
 		elseif si == 2 then -- delete
 			if userData.deleteUser(settings.selectedIndex) then
@@ -593,7 +502,7 @@ function game:updateSettings()
 				sound.play("MENU_SELECT")
 			elseif not userData.isValidUserId(userId) then
 				-- add/rename when hitting A on empty slot
-				keyboard.show("")
+				-- keyboard.show("")
 				textEntry.setVisible(true)
 				sound.play("MENU_SELECT")
 			end
@@ -858,6 +767,32 @@ function game:updateEditMode()
 end
 
 
+-- Keyboard callback (user settings screen)
+function addOrRenameUser(name)
+	if userData.addOrRenameUser(settings.selectedIndex, name) then
+		local userId = settings.selectedIndex
+		userData.setActiveUser(userId)
+		settings.drawToImage(bgImage, font, fontSmall)
+		gfx.sprite.redrawBackground()
+		sound.play("MENU_SELECT")
+	end
+end
+
+
+function renameDefaultUser(name)
+	if name ~= nil then
+		if userData.addOrRenameUser(userData.activeUserId, name) then
+			gfx.sprite.redrawBackground()
+			sound.play("MENU_SELECT")
+		end
+	end
+
+	textEntry.textEntryFinishedCallback = nil
+	textEntry.textEntryCanceledCallback = nil
+	game:changeState(STATE_TITLE)
+end
+
+
 
 -------------------------------------------------------------------------------
 -- MAIN -----------------------------------------------------------------------
@@ -910,9 +845,13 @@ function initGame()
 	player.reachExitCallback = function() game:endStage() end
 	player.deathCallback = function() game:endStage(true) end
 
-	game:changeState(STATE_TITLE, true)
-
-	-- game:changeState(STATE_GAME_CLEAR, true)
+	if userData.onlyDefaultUserExists() then
+		textEntry.textEntryFinishedCallback = renameDefaultUser
+		textEntry.textEntryCanceledCallback = renameDefaultUser
+		textEntry.setVisible(true)
+	else
+		game:changeState(STATE_TITLE, true)
+	end
 
 	gfx.sprite.setBackgroundDrawingCallback(
 		function(x, y, width, height)
