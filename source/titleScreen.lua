@@ -11,6 +11,8 @@ local gfx <const> = playdate.graphics
 titleScreen = {}
 titleScreen.__index = titleScreen
 
+titleScreen.versionImage = gfx.image.new("images/version")
+
 -- logo characters (x, y positions exported from blender. each letter is 3x3)
 -- offset should be 8 + multiple of 8
 -- scale should be multiple of 8. 24 is good. scale y should be inverted
@@ -84,6 +86,8 @@ function titleScreen.drawToImage(image, jitter, jitterScale)
 
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for menu", 200, 130, kTextAlignment.center)
+
+	titleScreen.versionImage:drawAnchored(400, 240, 1, 1)
 
 	gfx.unlockFocus()
 end
