@@ -24,6 +24,7 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 	local tu = getTimeUnits(playData.totalTime)
 	local timeString = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
 	local text = string.format("TIME: %s", timeString)
+	local numStages = stage.getNumStages()
 
 	if playData.gameMode ~= MODE_STANDARD then
 		text = "PRACTICE MODE"
@@ -54,7 +55,10 @@ function intermission.drawToImage(image, font, fontSmall, playData)
 	end
 
 	-- Current stage
-	if playData.gameMode ~= MODE_PRACTICE then
+	if playData.gameMode == MODE_STANDARD and playData.gameClear then
+		text = "All stages clear. You win!"
+		font:drawTextAligned(text, xp, yp + 10, kTextAlignment.center)
+	elseif playData.gameMode ~= MODE_PRACTICE and playData.currentStage <= numStages then
 		tu = getTimeUnits(stageRecord.time)
 		timeString = string.format("%.2d.%.3d", tu.seconds, tu.milliseconds)
 		text = string.format("ENTERING STAGE %.2d", playData.currentStage)
@@ -68,28 +72,33 @@ end
 
 
 function intermission.drawGameClear(image, font, fontSmall, playData)
-	image:clear(gfx.kColorWhite)
+	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
+
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 
 	-- Total elapsed time
 	local xp, yp = 200, 10
 	local stageRecord = userData.getStageTimeRecord(playData.currentStage)
 	local tu = getTimeUnits(playData.totalTime)
 	local timeString = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
-	local text = string.format("TIME: %s", timeString)
 
-	if playData.gameMode ~= MODE_STANDARD then
-		text = "YOU WIN!"
+	local text = "CONGRATULATIONS!"
+	if playData.livesUsed == 0 then
+		text = "YOU'RE UNSTOPPABLE!"
 	end
-
-	gfx.fillRect(0, 0, 400, 50)
-	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	font:drawTextAligned(text, xp, yp, kTextAlignment.center)
 
-	yp = 65
+	yp = 50
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRect(50, yp - 4, 300, 28)
 	gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+	text = string.format("CLEAR TIME: %s", timeString)
+	fontSmall:drawTextAligned(text, xp, yp, kTextAlignment.center)
 
-
+	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+	fontSmall:drawTextAligned("Thanks for playing Pulse!\nI hope you enjoyed the game,\nand that your D-pad survived.", xp, 100, kTextAlignment.center)
+	fontSmall:drawTextAligned("For more games, check mrflamey.itch.io", xp, 205, kTextAlignment.center)
 
 	gfx.unlockFocus()
 end

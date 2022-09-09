@@ -345,7 +345,7 @@ function game:handleStateEntry()
 		settings.setCursorVisible(true)
 	elseif state == STATE_GAME_CLEAR then
 		local playData = self:getPlayData()
-		intermission.drawGameClear(image, font, fontSmall, playData)
+		intermission.drawGameClear(bgImage, font, fontSmall, playData)
 		sound.play("CONGRATULATIONS")
 	else
 		print(string.format("Error: Unknown game state '%d'", state))
@@ -391,7 +391,8 @@ function game:endStage(failed)
 		self.prevRecord = record.time -- need to store this for intermission screen!
 		userData.trySaveStageTime(currentStageIndex, userName, self.timeElapsed)
 
-		currentStageIndex = clamp(currentStageIndex + 1, 1, numStages)
+		-- currentStageIndex = clamp(currentStageIndex + 1, 1, numStages)
+		currentStageIndex += 1
 	else
 		lastStageCleared -= 1
 	end
@@ -604,7 +605,7 @@ end
 function game:updateGameClear()
 	if not self:inTransition() then
 		if anyButtonJustPressed() or self.timeInState > 15.0 then
-			self:changeState(STATE_TITLE)
+			self:changeState(STATE_HISCORE)
 		end		
 	end
 end
@@ -633,7 +634,8 @@ function game:updateIntermission()
 				return
 			end
 
-			if self.gameMode == MODE_PRACTICE then
+			local numStages = stage.getNumStages()
+			if self.gameMode == MODE_PRACTICE or currentStageIndex > numStages then
 				self:changeState(STATE_LEVEL_SELECT)
 			else
 				self:changeState(STATE_STAGE_PLAY)
@@ -909,6 +911,8 @@ function initGame()
 	player.deathCallback = function() game:endStage(true) end
 
 	game:changeState(STATE_TITLE, true)
+
+	-- game:changeState(STATE_GAME_CLEAR, true)
 
 	gfx.sprite.setBackgroundDrawingCallback(
 		function(x, y, width, height)
