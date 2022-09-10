@@ -81,7 +81,8 @@ function titleScreen.drawToImage(image, jitter, jitterScale)
 	gfx.setLineWidth(4)
 	gfx.setLineCapStyle(gfx.kLineCapStyleRound)
 	-- cx, cy, letterSize, letterSpacing, jitterScale, lineWidth
-	-- titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale)
+	-- titleScreen.drawLogo(200, 48, 72, 8, jitter, jitterScale) -- Full width
+	-- titleScreen.drawLogo(200, 48, 58, 6, jitter, jitterScale) -- Card capture
 	titleScreen.drawLogo(200, 48, 68, 8, jitter, jitterScale)
 
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
