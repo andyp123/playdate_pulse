@@ -3,6 +3,5 @@ author=Andrew Palmer
 description=Escape each stage within a strict time limit.
 bundleID=com.andrewpalmer.pulse
 version=1.0
-buildNumber=123
 imagePath=images/launcher
-launchSoundPath=sounds/launcher
+launchSoundPath=sounds/menu_move_2.wav
