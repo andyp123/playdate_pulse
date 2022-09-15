@@ -1,24 +1,33 @@
 PULSE TODO
 ----------
 
-HIGH PRIORITY:
+POST RELEASE FIXES:
+- Falcon should be top of the high score table by default, not bottom
+- If the player uses more than 9 lives in the main game, the number of used lives might not show correctly on the high scores screen
+- Should rename High Scores to Best Runs? Best Runs to High Scores?
+
+ADDITIONS:
 - Highlight player position on level load? Draw player above transition?
-- Need a better effect when time runs out
+- Draw to Playdate pause screen to show player status (level, time, lives etc.)
+- A way to show the record time for all stages together (vertical scrolling table?)
 
+BUGS:
 - BUG: Once got stuck on intermission screen. No idea why... (maybe resetPlayData related?)
-- BUG: Selection on level select screen goes weird when switching modes (could be player?)
+- BUG: Was once unable to enter name or exit from name edit screen after a run.
 
-Fixed?:
+FIXED:
 x BUG: Can still move when time runs out, seems like a weird bug...
   x have reached the exit after time ran out
   x have moved into a wall too
 x BUG: Lives from practice/edit are left over when starting game
-x BUG: Stage items still fade weirdly when changing modes sometimes (there is a minor issue in edit mode...)
+x BUG: Stage items still fade weirdly when changing modes sometimes (minor issue in edit mode...)
 
-LOW PRIORITY:
-- PDF Manual
+IGNORE:
+- BUG: Selection on level select screen goes weird when switching modes (could be player?)
+  - This appears to only happen with the editor enabled in the simulator
 
 DONE:
+x PDF Manual
 x Intermission screen polish
 x Force user to create user data on first start?
 x Practice mode intermission screen should be different somehow
@@ -49,59 +58,3 @@ x Save which stages have been cleared (could just use time?)
 x In between stage screen showing stage #, time taken on prev stage, total time etc. Should be 2 seconds or require button press to advance
   x Stage intro: Stage #, total time, retries?   Prev cleared stage: time taken, best time (new record)
 
-
-Sounds Needed:
-The current sounds are taken from the old web version of this game, and were
-made with a tool called bfxr. They are bad but I thought they kind of fit the
-game somehow. There's no need to stay so lo-fi.
-
-What would be nice is the main pulse/time ticking sound gradually built up
-in urgency along with the pulse jittering effect that affects the stage boundaries
-as the timer nears zero. In general, stages take 10 seconds, but time can be
-extended by 2 seconds at a time, and the stage might be be longer or shorter.
-
-Playdate SDK has a few functions in the sound library for modifying sounds, but
-obviously it's very simple compared wto wwise etc.
-https://sdk.play.date/1.11.1/Inside%20Playdate.html#M-sound
-
-Midi type sounds can be generated, but you probably want to check out the
-various filters that can be applied to samples.
-Playdate also has a microphone if you have any cool ideas to use it.
-
-Main Game:
-Move
-Move Fail
-Move Death (if instant death mode activated)
-Get Key
-Get Clock
-Get Rotate Left
-Get Rotate Right
-Get Diamond
-Get Heart
-Use Key
-Press Switch (switches block state on stage)
-Block State Flip
-
-Time Tick
-Time Over
-
-Stage Clear
-Final Stage Clear
-Game Clear
-
-Menus Etc.
-Title Screen Logo Pulse
-Title Music
-High Score Jingle (fastest times)
-Menu Advance/Accept
-Menu Back
-Menu Selection Change
-
-Transition Fade In
-Transition Fade Out
-
-Edit Mode:
-Move Cursor
-Change Tile Type
-Save Stage
-Load Stage
