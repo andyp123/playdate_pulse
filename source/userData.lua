@@ -86,7 +86,8 @@ function userData.generateDummyRunData()
 	local names = dummyUserNames
 
 	for i = 1, maxRunRecords do
-		local name = names[i % #names + 1]
+		local iWrapped = (i-1) % #names + 1
+		local name = names[iWrapped]
 		local stagesCleared = clamp((maxRunRecords - i + 1) * 4, 1, 42)
 		local totalTime = 10.0 * stagesCleared
 		local livesUsed = math.random(0, maxRunRecords - i)
