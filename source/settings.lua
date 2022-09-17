@@ -13,7 +13,7 @@ settings = {}
 settings.__index = settings
 
 
-local cursorWidth <const> = 380
+local cursorWidth <const> = 390
 local cursorHeight <const> = 32
 local entrySpacing <const> = 38
 local maxEntries <const> = 5 -- todo: sync with userData?
@@ -26,7 +26,7 @@ function settings.init()
 	local sprite = gfx.sprite.new(img)
 	sprite:setImageDrawMode(gfx.kDrawModeXOR)
 	sprite:setCenter(0, 0)
-	sprite:moveTo(10, entryStartHeight - 5)
+	sprite:moveTo(5, entryStartHeight - 5)
 	sprite:add()
 	sprite:setVisible(false)
 	sprite:setZIndex(29000)
@@ -87,28 +87,28 @@ function settings.drawToImage(image, font, fontSmall)
 
 			-- Draw around active user only
 			if i == activeUserId then
-				gfx.drawRect(10, y - 5, cursorWidth, cursorHeight)
-				iconTable:drawImage(4, 40 - 22, y + 2)
+				gfx.drawRect(5, y - 5, cursorWidth, cursorHeight)
+				iconTable:drawImage(4, 10, y + 2)
 			end
 
 			-- Name
-			fontSmall:drawTextAligned(record.name, 40, y, kTextAlignment.left)
+			fontSmall:drawTextAligned(record.name, 30, y, kTextAlignment.left)
 
 			local bestRun = record.bestRun
 
 			if bestRun ~= nil then
 				-- Stage cleared
-				local x_stage = 180
+				local x_stage = 170
 				fontSmall:drawText(string.format("%d", bestRun.stagesCleared), x_stage, y)
 
 				-- Time
-				local x_time = 240
+				local x_time = 232
 				local tu = getTimeUnits(bestRun.totalTime)
 				local text = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
 				fontSmall:drawText(text, x_time, y)
 
 				-- Retries
-				x_retries = 365
+				x_retries = 360
 				fontSmall:drawText(bestRun.livesUsed, x_retries, y)
 
 				-- Icons

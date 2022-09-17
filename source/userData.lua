@@ -90,7 +90,7 @@ function userData.generateDummyRunData()
 		local name = names[iWrapped]
 		local stagesCleared = clamp((maxRunRecords - i + 1) * 4, 1, 42)
 		local totalTime = 10.0 * stagesCleared
-		local livesUsed = math.random(0, maxRunRecords - i)
+		local livesUsed = math.random(1, 4)
 		runRecords[i] = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 	end
 
@@ -359,23 +359,6 @@ function userData.addOrRenameUser(userId, name)
 		if record.bestRun ~= nil then
 			record.bestRun.name = name
 		end
-
-		-- Rename user in high score tables etc? Could potentially cheat this way?
-		-- Cheat: Rename self to score table name, then rename back. Will inherit scores...
-		-- -- Update run times
-		-- local runRecords = userData.runRecords
-		-- for i = 1, maxRunRecords do
-		-- 	if runRecords[i].name == prevName then
-		-- 		runRecords[i].name = name
-		-- 	end
-		-- end
-		-- -- Update individual stage time records
-		-- local stageTimeRecords = userData.stageTimeRecords
-		-- for i = 1, numStages do
-		-- 	if stageTimeRecords[i].name == prevName then
-		-- 		stageTimeRecords[i].name = name
-		-- 	end
-		-- end
 	end
 
 	userData.saveDataToFile()

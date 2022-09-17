@@ -2,9 +2,7 @@ PULSE TODO
 ----------
 
 POST RELEASE FIXES:
-- Falcon should be top of the high score table by default, not bottom
 - If the player uses more than 9 lives in the main game, the number of used lives might not show correctly on the high scores screen
-- Should rename High Scores to Best Runs? Best Runs to High Scores?
 
 ADDITIONS:
 - Highlight player position on level load? Draw player above transition?
@@ -16,6 +14,7 @@ BUGS:
 - BUG: Was once unable to enter name or exit from name edit screen after a run.
 
 FIXED:
+x Falcon should be top of the high score table by default, not bottom
 x BUG: Can still move when time runs out, seems like a weird bug...
   x have reached the exit after time ran out
   x have moved into a wall too

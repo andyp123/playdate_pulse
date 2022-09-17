@@ -43,17 +43,17 @@ function hiscore.drawToImage(image, font, fontSmall)
 		fontSmall:drawTextAligned(record.name, 110, y, kTextAlignment.right)
 
 		-- Stage cleared
-		local x_stage = 160
+		local x_stage = 158
 		fontSmall:drawText(string.format("%d", record.stagesCleared), x_stage, y)
 
 		-- Time
-		local x_time = 230
+		local x_time = 225
 		local tu = getTimeUnits(record.totalTime)
 		local text = string.format("%.2d:%.2d.%.3d", tu.minutes, tu.seconds, tu.milliseconds)
 		fontSmall:drawText(text, x_time, y)
 
 		-- Retries
-		x_retries = 365
+		x_retries = 360
 		fontSmall:drawText(record.livesUsed, x_retries, y)
 
 		-- Icons
@@ -67,7 +67,7 @@ function hiscore.drawToImage(image, font, fontSmall)
 		-- highlight row
 		if i == lastRank then
 			gfx.setColor(gfx.kColorXOR)
-			gfx.fillRect(10, y-4, 380, 26)
+			gfx.fillRect(5, y-4, 390, 26)
 		end
 
 		y += 30
