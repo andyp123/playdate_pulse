@@ -1,20 +1,25 @@
 PULSE TODO
 ----------
 
-POST RELEASE FIXES:
-- If the player uses more than 9 lives in the main game, the number of used lives might not show correctly on the high scores screen
+V1.1
+FIXES:
+x If the player uses more than 9 lives in the main game, the number of used lives might not show correctly on the high scores screen
+x Falcon should be top of the high score table by default, not bottom
 
 ADDITIONS:
-- Highlight player position on level load? Draw player above transition?
-- Draw to Playdate pause screen to show player status (level, time, lives etc.)
+- Option to hold dpad in the direction you want to go and have it repeat
+- Draw to Playdate pause screen to show player status (level, time, lives etc. current runs pos?)
 - A way to show the record time for all stages together (vertical scrolling table?)
+- Highlight player position on level load? Draw player above transition?
+- Add par times for all stages?
 
 BUGS:
-- BUG: Once got stuck on intermission screen. No idea why... (maybe resetPlayData related?)
 - BUG: Was once unable to enter name or exit from name edit screen after a run.
+- BUG: Once got stuck on intermission screen. No idea why... (maybe resetPlayData related?)
+
+----------
 
 FIXED:
-x Falcon should be top of the high score table by default, not bottom
 x BUG: Can still move when time runs out, seems like a weird bug...
   x have reached the exit after time ran out
   x have moved into a wall too
