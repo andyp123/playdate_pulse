@@ -2,6 +2,6 @@ name=Pulse
 author=Andrew Palmer
 description=Escape each stage within a strict time limit.
 bundleID=com.andrewpalmer.pulse
-version=1.0
+version=1.01
 imagePath=images/launcher
 launchSoundPath=sounds/menu_move_2.wav

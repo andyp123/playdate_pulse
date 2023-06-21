@@ -5,6 +5,7 @@
 # Playdate build folder
 *.pdx/
 /build.bat
+/build_sdk2.bat
 
 # Compiled Lua sources
 luac.out
