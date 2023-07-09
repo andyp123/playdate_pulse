@@ -136,6 +136,12 @@ menu.new("SETTINGS_MENU", {
 	"Delete ALL Data"
 }, font, 280, 32, 12, 32000)
 
+menu.new("HISCORE_MENU", {
+	"Toggle Local/Online",
+	"Toggle Time/Score",
+}, font, 280, 32, 12, 32000)
+
+
 if not isEditorEnabled then
 	menu.new("LEVELS_MENU", {
 		"Play Stage",
@@ -420,6 +426,8 @@ function game:endStage(failed)
 	end
 
 	if self.gameMode == MODE_STANDARD then
+		-- Always show local runs after game ends
+		hiscore.showOnlineRanking = false
 		self:changeState(STATE_HISCORE)
 	else
 		self:changeState(STATE_LEVEL_SELECT)
@@ -521,10 +529,25 @@ end
 
 
 function game:updateHiscore()
-	if not self:inTransition() then
-		if anyButtonJustPressed() or self.timeInState > 15.0 then
+	-- menu update
+	if menu.isMenuActive("HISCORE_MENU") then
+		local m = menu.activeMenu
+		local si = m:updateAndGetAnySelection()
+		if si == 1 then -- Toggle local/online
+			hiscore.showOnlineRanking = not hiscore.showOnlineRanking
+			self:changeState(STATE_HISCORE)
+		elseif si == 2 then -- Toggle times
+			hiscore.showTimes = not hiscore.showTimes
+			hiscore.drawToImage(bgImage, font, fontSmall)
+			gfx.sprite.redrawBackground()
+		end
+	elseif not self:inTransition() then
+
+		if playdate.buttonJustPressed(playdate.kButtonB) then
+			menu.setActiveMenu("HISCORE_MENU")
+		elseif playdate.buttonJustPressed(playdate.kButtonA) or self.timeInState > 15.0 then
 			self:changeState(STATE_TITLE)
-		end		
+		end	
 	end
 end
 
@@ -791,6 +814,11 @@ function renameDefaultUser(name)
 	textEntry.textEntryCanceledCallback = nil
 	game:changeState(STATE_TITLE)
 end
+
+
+-------------------------------------------------------------------------------
+-- SCOREBOARD CALLBACKS -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 
 

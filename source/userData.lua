@@ -126,8 +126,7 @@ function userData.generateEmptyUserData()
 	return userRecords
 end
 
-
-
+-- Unused
 -- For user records only, since sum of random user best times doesn't make sense
 function userData.getSumOfStageTimes(times)
 	local totalTime = 0.0
@@ -162,7 +161,7 @@ end
 -- Note: These functions will always save for the active user
 function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
 	local newPersonalBest =  userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
-	local newRunRank = userData.trySaveGlobalRunRecord(stagesCleared, totalTime, livesUsed)
+	local newRunRank = userData.trySaveLocalRunRecord(stagesCleared, totalTime, livesUsed)
 
 	if newPersonalBest or newRunRank > 0 then
 		userData.saveDataToFile()
@@ -188,7 +187,7 @@ function userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
 end
 
 
-function userData.trySaveGlobalRunRecord(stagesCleared, totalTime, livesUsed)
+function userData.trySaveLocalRunRecord(stagesCleared, totalTime, livesUsed)
 	if stagesCleared < 1 then return 0 end
 
 	local name = userData.getActiveUserName()
