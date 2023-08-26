@@ -819,8 +819,76 @@ end
 -------------------------------------------------------------------------------
 -- SCOREBOARD CALLBACKS -------------------------------------------------------
 -------------------------------------------------------------------------------
+-- scoreboardsCallback(status, result)
+-- status
+-- {
+-- 	code = "ERROR",
+-- 	message = "Some error message"
+-- }
+
+-- result
+-- {
+-- 	lastUpdated = 649972900,
+-- 	boards = [
+-- 		{
+-- 			boardID = "highscores",
+-- 			name = "High Scores"
+-- 		},
+-- 		{
+-- 			boardID = "lowscores",
+-- 			name = "Low Scores"
+-- 		}
+-- 	]
+-- }
+
+-- {
+-- 	lastUpdated = 649972900,
+-- 	scores = [
+-- 		{
+-- 			rank = 1,
+-- 			player = "mario",
+-- 			value = 100
+-- 		},
+-- 		{
+-- 			rank = 2,
+-- 			player = "luigi",
+-- 			value = 20
+-- 		}
+-- 	]
+-- }
 
 
+--boardID: pulsescores
+--name: "Pulse High Scores"
+
+-- probably don't even need to get scoreboards, just scores
+-- We know boardID is "pulsescores" already
+function getScoreboardsCallback(status, result)
+	if status.code == "OK" then
+		cnt = #result.boards
+		for i = 1, cnt do
+			board = result.boards[i]
+			print(string.format("%d: %s (\'%s\')", i, board.boardID, board.name))
+			if board.boardID == "pulsescores" then
+				print("Scoreboard found")
+				-- now update the online scores in the hiscore.lua code
+			end
+		end
+	end
+end
+
+function getScoresCallback(status, result)
+	-- update locally stored scores with online ones
+	-- if scoreboard is displayed, rerender scoreboard
+	if status.code == "OK" then
+		userData.updateOnlineRunRecords(result.scores)
+	end
+end
+
+playdate.scoreboards.getScoreboards(getScoreboardsCallback)
+playdate.scoreboards.getScores("pulsescores", getScoresCallback)
+
+-- playdate.scoreboards.addScore("pulsescores", value, addScoreCallback)
 
 -------------------------------------------------------------------------------
 -- MAIN -----------------------------------------------------------------------

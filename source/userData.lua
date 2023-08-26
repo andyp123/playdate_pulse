@@ -33,7 +33,29 @@ userData.activeUserId = 1 -- There must be at least one user record
 
 -- Temporary data
 userData.lastRunRank = 0 -- when non-zero, hiscore will use this to highlight entry
+userData.onlineRunRecords = {}
 
+function userData.updateOnlineRunRecords(scores)
+	-- update locally stored scores with online ones
+	-- if scoreboard is displayed, rerender scoreboard
+
+	-- get all scores (name, score)
+	-- for each score calculate times etc. and generate a runrecord
+	-- stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
+	-- userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+	onlineRecords = {}
+
+	cnt = #scores
+	for i = 1, cnt do
+		name = scores[i].name
+		score = scores[i].score
+		stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
+		record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+		onlineRecords[i] = record
+	end
+
+	userData.onlineRunRecords = onlineRecords
+end
 
 function userData.onlyDefaultUserExists()
 	local validRecords = 0
@@ -157,6 +179,13 @@ function userData.trySaveStageTime(stageId, name, clearTime)
 	return false
 end
 
+function userData.addOnlineScoreCallback(status, result)
+	if status.code == "ERROR" then
+		print(string.format("Score upload ERROR: %d", status.message))
+	else
+		print(string.format("Score upload OK: name=%s, score=%d, rank=%d", result.name, result.value, result.rank))
+	end
+end
 
 -- Note: These functions will always save for the active user
 function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
@@ -166,6 +195,10 @@ function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
 	if newPersonalBest or newRunRank > 0 then
 		userData.saveDataToFile()
 	end
+
+	-- Attempt to save the score online
+	score = calculateScore(stagesCleared, totalTime, livesUsed)
+	playdate.scoreboards.addScore("pulsescores", score, userData.addOnlineScoreCallback)
 
 	-- can use these to trigger events etc.
 	return newPersonalBest, newRunRank
