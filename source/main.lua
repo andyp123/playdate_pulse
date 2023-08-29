@@ -540,6 +540,7 @@ function game:updateHiscore()
 			hiscore.showTimes = not hiscore.showTimes
 			hiscore.drawToImage(bgImage, font, fontSmall)
 			gfx.sprite.redrawBackground()
+			self.timeInState = 0.0 -- Hacky way to reset state time
 		end
 	elseif not self:inTransition() then
 
@@ -819,28 +820,15 @@ end
 -------------------------------------------------------------------------------
 -- SCOREBOARD CALLBACKS -------------------------------------------------------
 -------------------------------------------------------------------------------
--- scoreboardsCallback(status, result)
+
+-- https://help.play.date/catalog-developer/scoreboard-api/
 -- status
 -- {
 -- 	code = "ERROR",
 -- 	message = "Some error message"
 -- }
 
--- result
--- {
--- 	lastUpdated = 649972900,
--- 	boards = [
--- 		{
--- 			boardID = "highscores",
--- 			name = "High Scores"
--- 		},
--- 		{
--- 			boardID = "lowscores",
--- 			name = "Low Scores"
--- 		}
--- 	]
--- }
-
+-- result (when getting scores)
 -- {
 -- 	lastUpdated = 649972900,
 -- 	scores = [
@@ -857,38 +845,23 @@ end
 -- 	]
 -- }
 
-
 --boardID: pulsescores
 --name: "Pulse High Scores"
-
--- probably don't even need to get scoreboards, just scores
--- We know boardID is "pulsescores" already
-function getScoreboardsCallback(status, result)
-	if status.code == "OK" then
-		cnt = #result.boards
-		for i = 1, cnt do
-			board = result.boards[i]
-			print(string.format("%d: %s (\'%s\')", i, board.boardID, board.name))
-			if board.boardID == "pulsescores" then
-				print("Scoreboard found")
-				-- now update the online scores in the hiscore.lua code
-			end
-		end
-	end
-end
 
 function getScoresCallback(status, result)
 	-- update locally stored scores with online ones
 	-- if scoreboard is displayed, rerender scoreboard
 	if status.code == "OK" then
+		print("Updating local scores from online scoreboard \'pulsescores\'")
 		userData.updateOnlineRunRecords(result.scores)
+		-- Refresh scoreboard if it is currently being viewed
+		if state == STATE_HISCORE and hiscore.showOnlineRanking then
+			hiscore.drawToImage(bgImage, font, fontSmall)
+		end
 	end
 end
 
-playdate.scoreboards.getScoreboards(getScoreboardsCallback)
 playdate.scoreboards.getScores("pulsescores", getScoresCallback)
-
--- playdate.scoreboards.addScore("pulsescores", value, addScoreCallback)
 
 -------------------------------------------------------------------------------
 -- MAIN -----------------------------------------------------------------------

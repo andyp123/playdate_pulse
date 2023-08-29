@@ -43,15 +43,24 @@ function userData.updateOnlineRunRecords(scores)
 	-- for each score calculate times etc. and generate a runrecord
 	-- stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
 	-- userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
-	onlineRecords = {}
+	local onlineRecords = {}
 
-	cnt = #scores
+	local cnt = #scores
+	local j = 1 -- Don't want to do this, but it's possible there may be dodgy data in the scores
 	for i = 1, cnt do
-		name = scores[i].name
-		score = scores[i].score
-		stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
-		record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
-		onlineRecords[i] = record
+		local rank = scores[i].rank
+		local name = scores[i].name
+		local score = scores[i].value
+		if name == nil then
+			name = "PD_SDK" -- Todo: ignore nil entries later
+		end
+		if score ~= nil then
+			local stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
+			local record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+			onlineRecords[j] = record
+			j = j + 1 -- Only increment if the score entry was valid
+			print(string.format("%s: %s - %s (%d, %s, %d)", rank, name, score, stagesCleared, totalTime, livesUsed))
+		end
 	end
 
 	userData.onlineRunRecords = onlineRecords
@@ -189,7 +198,7 @@ end
 
 -- Note: These functions will always save for the active user
 function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
-	local newPersonalBest =  userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
+	local newPersonalBest = userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
 	local newRunRank = userData.trySaveLocalRunRecord(stagesCleared, totalTime, livesUsed)
 
 	if newPersonalBest or newRunRank > 0 then
@@ -197,7 +206,7 @@ function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
 	end
 
 	-- Attempt to save the score online
-	score = calculateScore(stagesCleared, totalTime, livesUsed)
+	local score = calculateScore(stagesCleared, totalTime, livesUsed)
 	playdate.scoreboards.addScore("pulsescores", score, userData.addOnlineScoreCallback)
 
 	-- can use these to trigger events etc.

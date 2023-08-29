@@ -32,7 +32,12 @@ function hiscore.drawToImage(image, font, fontSmall)
 	font:drawTextAligned(titleText, 200, 10, kTextAlignment.center)
 
 	local y = 54
-	local runRecords = userData.runRecords
+	local runRecords
+	if hiscore.showOnlineRanking then
+		runRecords = userData.onlineRunRecords
+	else
+		runRecords = userData.runRecords
+	end
 
 	local lastRank = userData.lastRunRank
 	if lastRank > 0 and lastRank <= maxRunsToShow then
