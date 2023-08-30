@@ -35,6 +35,10 @@ userData.activeUserId = 1 -- There must be at least one user record
 userData.lastRunRank = 0 -- when non-zero, hiscore will use this to highlight entry
 userData.onlineRunRecords = {}
 
+-- Set this function to a callback from elsewhere
+-- kinda gross?
+userData.getScoresCallback = nil
+
 function userData.updateOnlineRunRecords(scores)
 	-- update locally stored scores with online ones
 	-- if scoreboard is displayed, rerender scoreboard
@@ -45,11 +49,12 @@ function userData.updateOnlineRunRecords(scores)
 	-- userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
 	local onlineRecords = {}
 
-	local cnt = #scores
+	local cnt = tablelength(scores)
+	print(string.format("Found %d score(s)", cnt))
 	local j = 1 -- Don't want to do this, but it's possible there may be dodgy data in the scores
 	for i = 1, cnt do
 		local rank = scores[i].rank
-		local name = scores[i].name
+		local name = scores[i].player
 		local score = scores[i].value
 		if name == nil then
 			name = "PD_SDK" -- Todo: ignore nil entries later
@@ -188,13 +193,19 @@ function userData.trySaveStageTime(stageId, name, clearTime)
 	return false
 end
 
+
 function userData.addOnlineScoreCallback(status, result)
 	if status.code == "ERROR" then
 		print(string.format("Score upload ERROR: %d", status.message))
 	else
 		print(string.format("Score upload OK: name=%s, score=%d, rank=%d", result.name, result.value, result.rank))
+		-- Try to refresh scores after successful upload
+		if userData.getScoresCallback ~= nil then
+			playdate.scoreboards.getScores("pulsescores", userData.getScoresCallback)
+		end
 	end
 end
+
 
 -- Note: These functions will always save for the active user
 function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)

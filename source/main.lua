@@ -185,6 +185,59 @@ function anyButtonJustPressed()
 end
 
 
+
+-------------------------------------------------------------------------------
+-- SCOREBOARD CALLBACKS -------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- https://help.play.date/catalog-developer/scoreboard-api/
+-- status
+-- {
+-- 	code = "ERROR",
+-- 	message = "Some error message"
+-- }
+
+-- result (when getting scores)
+-- {
+-- 	lastUpdated = 649972900,
+-- 	scores = [
+-- 		{
+-- 			rank = 1,
+-- 			player = "mario",
+-- 			value = 100
+-- 		},
+-- 		{
+-- 			rank = 2,
+-- 			player = "luigi",
+-- 			value = 20
+-- 		}
+-- 	]
+-- }
+
+--boardID: pulsescores
+--name: "Pulse High Scores"
+
+function getScoresCallback(status, result)
+	-- update locally stored scores with online ones
+	-- if scoreboard is displayed, rerender scoreboard
+	if status.code == "OK" then
+		print("Updating local scores from online scoreboard \'pulsescores\'")
+		userData.updateOnlineRunRecords(result.scores)
+		-- Refresh scoreboard if it is currently being viewed
+		if state == STATE_HISCORE and hiscore.showOnlineRanking == true then
+			hiscore.drawToImage(bgImage, font, fontSmall)
+		end
+	end
+end
+
+-- Since we need to refresh the scoreboard when the scores are
+-- updated, this callback needs access to main.lua
+userData.getScoresCallback = getScoresCallback
+
+playdate.scoreboards.getScores("pulsescores", userData.getScoresCallback)
+
+
+
 -------------------------------------------------------------------------------
 -- GAME -----------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -351,6 +404,7 @@ function game:handleStateEntry()
 		local playData = self:getPlayData()
 		intermission.drawToImage(bgImage, font, fontSmall, playData)
 	elseif state == STATE_HISCORE then
+		playdate.scoreboards.getScores("pulsescores", getScoresCallback)
 		hiscore.drawToImage(bgImage, font, fontSmall)
 	elseif state == STATE_SETTINGS then
 		textEntry.textEntryFinishedCallback = addOrRenameUser
@@ -816,52 +870,6 @@ function renameDefaultUser(name)
 	game:changeState(STATE_TITLE)
 end
 
-
--------------------------------------------------------------------------------
--- SCOREBOARD CALLBACKS -------------------------------------------------------
--------------------------------------------------------------------------------
-
--- https://help.play.date/catalog-developer/scoreboard-api/
--- status
--- {
--- 	code = "ERROR",
--- 	message = "Some error message"
--- }
-
--- result (when getting scores)
--- {
--- 	lastUpdated = 649972900,
--- 	scores = [
--- 		{
--- 			rank = 1,
--- 			player = "mario",
--- 			value = 100
--- 		},
--- 		{
--- 			rank = 2,
--- 			player = "luigi",
--- 			value = 20
--- 		}
--- 	]
--- }
-
---boardID: pulsescores
---name: "Pulse High Scores"
-
-function getScoresCallback(status, result)
-	-- update locally stored scores with online ones
-	-- if scoreboard is displayed, rerender scoreboard
-	if status.code == "OK" then
-		print("Updating local scores from online scoreboard \'pulsescores\'")
-		userData.updateOnlineRunRecords(result.scores)
-		-- Refresh scoreboard if it is currently being viewed
-		if state == STATE_HISCORE and hiscore.showOnlineRanking then
-			hiscore.drawToImage(bgImage, font, fontSmall)
-		end
-	end
-end
-
-playdate.scoreboards.getScores("pulsescores", getScoresCallback)
 
 -------------------------------------------------------------------------------
 -- MAIN -----------------------------------------------------------------------
