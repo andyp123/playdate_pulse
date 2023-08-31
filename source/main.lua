@@ -139,6 +139,7 @@ menu.new("SETTINGS_MENU", {
 menu.new("HISCORE_MENU", {
 	"Toggle Local/Online",
 	"Toggle Time/Score",
+	"Back to Title"
 }, font, 280, 32, 12, 32000)
 
 
@@ -595,6 +596,8 @@ function game:updateHiscore()
 			hiscore.drawToImage(bgImage, font, fontSmall)
 			gfx.sprite.redrawBackground()
 			self.timeInState = 0.0 -- Hacky way to reset state time
+		elseif si == 3 then
+			self:changeState(STATE_TITLE)			
 		end
 	elseif not self:inTransition() then
 
