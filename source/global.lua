@@ -69,6 +69,21 @@ function getTimeUnits(time)
 end
 
 
+function getValidatedText(text, maxWidth, font)
+	-- Allow all alphanumeric chars, space and _
+	text = string.gsub(text, "[^%w _]+", "")
+
+	-- Set a maximum display width
+	if font ~= nil then
+		while font:getTextWidth(text) > maxWidth do
+			text = string.sub(text, 1, string.len(text) - 1)
+		end
+	end
+
+	return text
+end
+
+
 -- Global High Score Calculation
 -- =============================
 

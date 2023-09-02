@@ -142,7 +142,6 @@ menu.new("HISCORE_MENU", {
 	"Back to Title"
 }, font, 280, 32, 12, 32000)
 
-
 if not isEditorEnabled then
 	menu.new("LEVELS_MENU", {
 		"Play Stage",
@@ -191,51 +190,25 @@ end
 -- SCOREBOARD CALLBACKS -------------------------------------------------------
 -------------------------------------------------------------------------------
 
--- https://help.play.date/catalog-developer/scoreboard-api/
--- status
--- {
--- 	code = "ERROR",
--- 	message = "Some error message"
--- }
+-- See userData.lua for main functions
 
--- result (when getting scores)
--- {
--- 	lastUpdated = 649972900,
--- 	scores = [
--- 		{
--- 			rank = 1,
--- 			player = "mario",
--- 			value = 100
--- 		},
--- 		{
--- 			rank = 2,
--- 			player = "luigi",
--- 			value = 20
--- 		}
--- 	]
--- }
-
---boardID: pulsescores
---name: "Pulse High Scores"
-
-function getScoresCallback(status, result)
-	-- update locally stored scores with online ones
-	-- if scoreboard is displayed, rerender scoreboard
-	if status.code == "OK" then
-		print("Updating local scores from online scoreboard \'pulsescores\'")
-		userData.updateOnlineRunRecords(result.scores)
-		-- Refresh scoreboard if it is currently being viewed
-		if state == STATE_HISCORE and hiscore.showOnlineRanking == true then
-			hiscore.drawToImage(bgImage, font, fontSmall)
-		end
+function onlineScoresUpdated()
+	-- Refresh scoreboard if it is currently being viewed
+	if state == STATE_HISCORE and hiscore.showOnlineRanking == true then
+		hiscore.drawToImage(bgImage, font, fontSmall)
 	end
 end
 
--- Since we need to refresh the scoreboard when the scores are
--- updated, this callback needs access to main.lua
-userData.getScoresCallback = getScoresCallback
 
-playdate.scoreboards.getScores("pulsescores", userData.getScoresCallback)
+function onlineRankReceived(result)
+
+end
+
+userData.onOnlineScoresUpdated = onlineScoresUpdated
+userData.onOnlineRankReceived = onlineRankReceived
+
+-- refresh scores and get current rank on boot
+userData.refreshOnlineScores()
 
 
 
@@ -405,7 +378,7 @@ function game:handleStateEntry()
 		local playData = self:getPlayData()
 		intermission.drawToImage(bgImage, font, fontSmall, playData)
 	elseif state == STATE_HISCORE then
-		playdate.scoreboards.getScores("pulsescores", getScoresCallback)
+		userData.refreshOnlineScores()
 		hiscore.drawToImage(bgImage, font, fontSmall)
 	elseif state == STATE_SETTINGS then
 		textEntry.textEntryFinishedCallback = addOrRenameUser

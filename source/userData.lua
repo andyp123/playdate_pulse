@@ -1,10 +1,15 @@
 -- Playdate SDK
 import "CoreLibs/object"
 
+import "textEntry" -- for getValidatedText
+
 userData = {}
 userData.__index = userData
 
 local userDataFilename <const> = "data/userdata"
+local scoreboardID <const> = "pulsescores"
+-- boardID: pulsescores
+-- name: "Pulse High Scores"
 
 local numStages <const> = 84 -- Stage width * height (12 * 7) to make level select grid, so 84 stages
 local maxUserRecords <const> = 5 -- number of records that can be shown on the user settings screen
@@ -25,6 +30,7 @@ local dummyUserNames = {
 	"Slow Loris",
 }
 
+
 -- Main data
 userData.stageTimeRecords = {}
 userData.userRecords = {}
@@ -34,19 +40,72 @@ userData.activeUserId = 1 -- There must be at least one user record
 -- Temporary data
 userData.lastRunRank = 0 -- when non-zero, hiscore will use this to highlight entry
 userData.onlineRunRecords = {}
+userData.onlineRank = {} -- playdate.scoreboards result {player, value, rank}
 
--- Set this function to a callback from elsewhere
--- kinda gross?
-userData.getScoresCallback = nil
 
-function userData.updateOnlineRunRecords(scores)
+-- FUNCTIONS FOR ONLINE SCORES AND RANK --
+
+-- events called from score callbacks (signature is "func(result)")
+userData.onOnlineScoresUpdated = nil -- this used because we may need to update display via main.lua
+userData.onOnlineRankReceived = nil -- use this to hook into rank display in main.lua
+
+-- For more information on the scoreboard api, including status and result:
+-- https://help.play.date/catalog-developer/scoreboard-api/
+
+function userData.refreshOnlineScores()
+	playdate.scoreboards.getPersonalBest(scoreboardID, userData.getPersonalBestCallback)
+	playdate.scoreboards.getScores(scoreboardID, userData.getOnlineScoresCallback)
+end
+
+
+-- This will get the best rank of the current playdate user, NOT local player
+-- Note that it gets the rank stored in the playdate's local cache of scores,
+-- not the actual online rank, but they should be the same
+function userData.getPersonalBestCallback(status, result)
+	if status.code == "OK" and result ~= nil then
+		userData.onlineRank = result.rank
+		print(string.format("Personal best: player=%s, score=%d, rank=%d", result.player, result.value, result.rank))
+	else
+		if status.code == "ERROR" then
+			print(string.format("Error: %s", status.message))
+		else
+			print("User has no personal best stored")
+		end
+	end
+end
+
+
+function userData.addOnlineScoreCallback(status, result)
+	if status.code == "OK" and result ~= nil then
+		print(string.format("Score upload OK: player=%s, score=%d, rank=%d", result.player, result.value, result.rank))
+
+		local currentRank = userData.onlineRank
+		if currentRank.rank == nil or result.rank < currentRank.rank then
+			-- New personal best (unless somehow this happens before personal best has been refreshed)
+			userData.onlineRank = result
+		end
+
+		-- Only need to do this if rank <= 6? Just do it anyway
+		userData.refreshOnlineScores()
+	end
+end
+
+
+function userData.getOnlineScoresCallback(status, result)
 	-- update locally stored scores with online ones
 	-- if scoreboard is displayed, rerender scoreboard
+	if status.code == "OK" then
+		print(string.format("Updating local scores from online scoreboard \'%s\'", scoreboardID))
+		userData.updateOnlineRunRecords(result.scores)
 
-	-- get all scores (name, score)
-	-- for each score calculate times etc. and generate a runrecord
-	-- stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
-	-- userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+		if userData.scoresUpdatedCallback ~= nil then
+			userData.scoresUpdatedCallback()
+		end
+	end
+end
+
+
+function userData.updateOnlineRunRecords(scores)
 	local onlineRecords = {}
 
 	local cnt = tablelength(scores)
@@ -54,22 +113,27 @@ function userData.updateOnlineRunRecords(scores)
 	local j = 1 -- Don't want to do this, but it's possible there may be dodgy data in the scores
 	for i = 1, cnt do
 		local rank = scores[i].rank
-		local name = scores[i].player
+		local player = scores[i].player
 		local score = scores[i].value
-		if name == nil then
-			name = "PD_SDK" -- Todo: ignore nil entries later
-		end
-		if score ~= nil then
+
+		-- Some names may be too long to display, and need shortening. This way of accessing textEntry
+		-- is not very nice, but it should work at least.
+		player = textEntry.getValidatedText(player, textEntry.maxTextWidth, textEntry.font)
+
+		if player ~= nil and score ~= nil then
 			local stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)
-			local record = userData.makeRunRecord(name, stagesCleared, totalTime, livesUsed)
+			local record = userData.makeRunRecord(player, stagesCleared, totalTime, livesUsed)
 			onlineRecords[j] = record
 			j = j + 1 -- Only increment if the score entry was valid
-			print(string.format("%s: %s - %s (%d, %s, %d)", rank, name, score, stagesCleared, totalTime, livesUsed))
+			print(string.format("%s: %s - %s (%d, %s, %d)", rank, player, score, stagesCleared, totalTime, livesUsed))
 		end
 	end
 
 	userData.onlineRunRecords = onlineRecords
 end
+
+
+-- OFFLINE USER DATA RELATED FUNCTIONS --
 
 function userData.onlyDefaultUserExists()
 	local validRecords = 0
@@ -194,19 +258,6 @@ function userData.trySaveStageTime(stageId, name, clearTime)
 end
 
 
-function userData.addOnlineScoreCallback(status, result)
-	if status.code == "ERROR" then
-		print(string.format("Score upload ERROR: %d", status.message))
-	else
-		print(string.format("Score upload OK: name=%s, score=%d, rank=%d", result.name, result.value, result.rank))
-		-- Try to refresh scores after successful upload
-		if userData.getScoresCallback ~= nil then
-			playdate.scoreboards.getScores("pulsescores", userData.getScoresCallback)
-		end
-	end
-end
-
-
 -- Note: These functions will always save for the active user
 function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
 	local newPersonalBest = userData.trySaveUserRunRecord(stagesCleared, totalTime, livesUsed)
@@ -218,7 +269,7 @@ function userData.trySaveRunRecord(stagesCleared, totalTime, livesUsed)
 
 	-- Attempt to save the score online
 	local score = calculateScore(stagesCleared, totalTime, livesUsed)
-	playdate.scoreboards.addScore("pulsescores", score, userData.addOnlineScoreCallback)
+	playdate.scoreboards.addScore(scoreboardID, score, userData.addOnlineScoreCallback)
 
 	-- can use these to trigger events etc.
 	return newPersonalBest, newRunRank
