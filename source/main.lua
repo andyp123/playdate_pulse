@@ -196,29 +196,6 @@ end
 
 -- See userData.lua for main functions
 
-function onlineScoresUpdated()
-	-- Refresh scoreboard if it is currently being viewed
-	if state == STATE_HISCORE and hiscore.showOnlineRanking == true then
-		hiscore.drawToImage(bgImage, font, fontSmall)
-	end
-end
-
-
-function onlineRankReceived(result)
-	local rank = result.rank
-	local player = result.player
-	local score = result.value
-
-	local prevRank = userData.onlineRank.rank
-	if prevRank == nil then
-		prevRank = 9999
-	end
-	local rankCardMenu = menu.setActiveMenu("RANK_CARD")
-	local message = getOnlineRankMessage(rank, prevRank)
-	rankCardMenu:updateRankCardImage(rank, player, score, message, fontSmall)
-end
-
-
 function generateOnlineRankMessage(rank, prevRank)
 	local message = ""
 	if rank > 50 then
@@ -241,6 +218,30 @@ function generateOnlineRankMessage(rank, prevRank)
 
 	return message
 end
+
+
+function onlineScoresUpdated()
+	-- Refresh scoreboard if it is currently being viewed
+	if state == STATE_HISCORE and hiscore.showOnlineRanking == true then
+		hiscore.drawToImage(bgImage, font, fontSmall)
+	end
+end
+
+
+function onlineRankReceived(result)
+	local rank = result.rank
+	local player = result.player
+	local score = result.value
+
+	local prevRank = userData.onlineRank.rank
+	if prevRank == nil then
+		prevRank = 9999
+	end
+	local rankCardMenu = menu.setActiveMenu("RANK_CARD")
+	local message = generateOnlineRankMessage(rank, prevRank)
+	rankCardMenu:updateRankCardImage(rank, player, score, message, fontSmall)
+end
+
 
 userData.onOnlineScoresUpdated = onlineScoresUpdated
 userData.onOnlineRankReceived = onlineRankReceived
