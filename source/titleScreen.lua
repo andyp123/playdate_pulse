@@ -5,6 +5,7 @@ import "CoreLibs/sprites"
 
 -- Pulse
 import "stage" -- need constants from here
+import "userData" -- get rank from here
 
 local gfx <const> = playdate.graphics
 
@@ -67,7 +68,7 @@ function titleScreen.drawLogo(cx, cy, letterSize, letterSpacing, jitter, jitterS
 end
 
 
-function titleScreen.drawToImage(image, jitter, jitterScale)
+function titleScreen.drawToImage(image, jitter, jitterScale, font, fontSmall)
 	image:clear(gfx.kColorBlack)
 	gfx.lockFocus(image)
 
@@ -85,8 +86,15 @@ function titleScreen.drawToImage(image, jitter, jitterScale)
 	-- titleScreen.drawLogo(200, 48, 58, 6, jitter, jitterScale) -- Card capture
 	titleScreen.drawLogo(200, 48, 68, 8, jitter, jitterScale)
 
+		-- fontSmall:drawTextAligned(record.name, 110, y, kTextAlignment.right)
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-	gfx.drawTextAligned("Press Ⓐ to begin\nⒷ for menu", 200, 130, kTextAlignment.center)
+	font:drawTextAligned("Press Ⓐ to begin\nⒷ for menu", 200, 130, kTextAlignment.center)
+
+	-- next used to check for an empty table
+	if userData.onlineRank.rank ~= nil then
+		local rankText = string.format("online rank: %d", userData.onlineRank.rank)
+		fontSmall:drawTextAligned(rankText, 5, 220, kTextAlignment.left)
+	end
 
 	titleScreen.versionImage:drawAnchored(400, 240, 1, 1)
 

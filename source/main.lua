@@ -362,7 +362,7 @@ function game:handleStateEntry()
 		player1.editModeEnabled = false
 		self:resetPlayData()
 		-- without this, the stage background will continue to be drawn for a short while
-		titleScreen.drawToImage(bgImage, jitter, 0)
+		titleScreen.drawToImage(bgImage, jitter, 0, font, fontSmall)
 	elseif state == STATE_STAGE_PLAY then
 		player1:reset() -- No full reset in case we are changing stages
 		loadStage(currentStageIndex)
@@ -660,7 +660,7 @@ function game:updateTitle()
 		local tlim = 0.5
 		jitterScale = math.pow(clamp(t - tlim, 0, 1) * (1/tlim), 3) * 8
 		if t >= tlim then
-			titleScreen.drawToImage(bgImage, jitter, jitterScale)
+			titleScreen.drawToImage(bgImage, jitter, jitterScale, font, fontSmall)
 			-- only redraw the whole screen after transition
 			if self.timeInState > deltaTimeSeconds then
 				gfx.sprite.addDirtyRect(0,0,400,100)

@@ -63,7 +63,7 @@ end
 -- not the actual online rank, but they should be the same
 function userData.getPersonalBestCallback(status, result)
 	if status.code == "OK" and result ~= nil then
-		userData.onlineRank = result.rank
+		userData.onlineRank = result
 		print(string.format("Personal best: player=%s, score=%d, rank=%d", result.player, result.value, result.rank))
 	else
 		if status.code == "ERROR" then
