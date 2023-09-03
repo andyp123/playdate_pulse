@@ -15,6 +15,8 @@ local numStages <const> = 84 -- Stage width * height (12 * 7) to make level sele
 local maxUserRecords <const> = 5 -- number of records that can be shown on the user settings screen
 local maxRunRecords <const> = 6 -- number of records that can be displayed on the best runs screen
 
+local maxOnlineNameWidth = 140 -- width of string that can be displayed on the hiscore table
+
 -- Used to fill time for stages that haven't been cleared
 -- The time limit is 10 seconds, but items can increase this a little
 local nonClearTime <const> = 20.0
@@ -45,7 +47,7 @@ userData.onlineRank = {} -- playdate.scoreboards result {player, value, rank}
 
 -- FUNCTIONS FOR ONLINE SCORES AND RANK --
 
--- events called from score callbacks (signature is "func(result)")
+-- events called from score callbacks
 userData.onOnlineScoresUpdated = nil -- this used because we may need to update display via main.lua
 userData.onOnlineRankReceived = nil -- use this to hook into rank display in main.lua
 
@@ -60,7 +62,7 @@ end
 
 -- This will get the best rank of the current playdate user, NOT local player
 -- Note that it gets the rank stored in the playdate's local cache of scores,
--- not the actual online rank, but they should be the same
+-- not the actual online rank, so they may get out of sync!
 function userData.getPersonalBestCallback(status, result)
 	if status.code == "OK" and result ~= nil then
 		userData.onlineRank = result
@@ -79,10 +81,14 @@ function userData.addOnlineScoreCallback(status, result)
 	if status.code == "OK" and result ~= nil then
 		print(string.format("Score upload OK: player=%s, score=%d, rank=%d", result.player, result.value, result.rank))
 
-		local currentRank = userData.onlineRank
-		if currentRank.rank == nil or result.rank < currentRank.rank then
-			-- New personal best (unless somehow this happens before personal best has been refreshed)
-			userData.onlineRank = result
+		-- local currentRank = userData.onlineRank
+		-- if currentRank.rank == nil or result.rank < currentRank.rank then
+		-- 	-- New personal best (unless somehow this happens before personal best has been refreshed)
+		-- 	userData.onlineRank = result
+		-- end
+
+		if userData.onOnlineRankReceived ~= nil then
+			userData.onOnlineRankReceived(result)
 		end
 
 		-- Only need to do this if rank <= 6? Just do it anyway
@@ -98,8 +104,8 @@ function userData.getOnlineScoresCallback(status, result)
 		print(string.format("Updating local scores from online scoreboard \'%s\'", scoreboardID))
 		userData.updateOnlineRunRecords(result.scores)
 
-		if userData.scoresUpdatedCallback ~= nil then
-			userData.scoresUpdatedCallback()
+		if userData.onOnlineScoresUpdated ~= nil then
+			userData.onOnlineScoresUpdated()
 		end
 	end
 end
@@ -118,7 +124,7 @@ function userData.updateOnlineRunRecords(scores)
 
 		-- Some names may be too long to display, and need shortening. This way of accessing textEntry
 		-- is not very nice, but it should work at least.
-		player = textEntry.getValidatedText(player, textEntry.maxTextWidth, textEntry.font)
+		player = textEntry.getValidatedText(player, maxOnlineNameWidth, textEntry.font)
 
 		if player ~= nil and score ~= nil then
 			local stagesCleared, totalTime, livesUsed = getStageTimeLivesFromScore(score)

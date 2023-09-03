@@ -49,7 +49,7 @@ local transitionImageTable = gfx.imagetable.new("images/transition1")
 local transitionImage = gfx.image.new(400, 240)
 local transitionSprite = gfx.sprite.new(transitionImage)
 transitionSprite:add()
-transitionSprite:setZIndex(32767)
+transitionSprite:setZIndex(32700)
 transitionSprite:moveTo(200,120)
 transitionSprite:setImageDrawMode(gfx.kDrawModeBlackTransparent)
 
@@ -108,25 +108,26 @@ local totalTimeSeconds = 0
 local deltaTimeSeconds = 1 / playdate.display.getRefreshRate()
 
 -- Menus
--- font, 260, 32, 12, 32000) -- 6 rows max
--- fontSmall, 260, 22, 8, 32000) -- 10 rows max
+-- menuId, items, font, width, rowHeight, padding, ?bgColor
+-- font, 260, 32, 12) -- 6 rows max
+-- fontSmall, 260, 22, 8) -- 10 rows max
 menu.new("TITLE_MENU", {
 	"Start Run",
 	"Practice Mode",
 	"High Scores",
 	"User Settings",
-}, font, 280, 32, 12, 32000)
+}, font, 280, 32, 12)
 
 menu.new("PAUSE_MENU", {
 	"Resume",
 	"Quit to Title"
-}, font, 280, 32, 12, 32000)
+}, font, 280, 32, 12)
 
 menu.new("PAUSE_MENU_PRACTICE", {
 	"Resume",
 	"Restart",
 	"Back to Stage Select"
-}, font, 280, 32, 12, 32000)
+}, font, 280, 32, 12)
 
 menu.new("SETTINGS_MENU", {
 	"Rename User",
@@ -134,32 +135,32 @@ menu.new("SETTINGS_MENU", {
 	"Back to Title",
 	"---",
 	"Delete ALL Data"
-}, font, 280, 32, 12, 32000)
+}, font, 280, 32, 12)
 
 menu.new("HISCORE_MENU", {
 	"Toggle Local/Online",
 	"Toggle Time/Score",
 	"Back to Title"
-}, font, 280, 32, 12, 32000)
+}, font, 280, 32, 12)
 
 if not isEditorEnabled then
 	menu.new("LEVELS_MENU", {
 		"Play Stage",
 		"Play From Here",
 		"Back to Title"
-	}, font, 280, 32, 12, 32000)
+	}, font, 280, 32, 12)
 
 else
 	menu.new("LEVELS_MENU", {
 		"Play Stage",
 		"Edit Stage",
 		"Back to Title"
-	}, font, 280, 32, 12, 32000)
+	}, font, 280, 32, 12)
 
 	menu.new("PAUSE_MENU_EDIT", {
 		"Resume",
 		"Back to Stage Edit"
-	}, font, 280, 32, 12, 32000)
+	}, font, 280, 32, 12)
 
 	menu.new("EDIT_MENU", {
 		"Play Stage",
@@ -168,8 +169,11 @@ else
 		"Clear (Filled)",
 		"Clear (Empty)",
 		"Back to Stage Select"
-	}, font, 280, 32, 12, 32000)
+	}, font, 340, 32, 12)
 end
+
+-- Should appear above transition sprite
+menu.makeRankCard("RANK_CARD", font, 280, 32, 12)
 
 -- Helper function for input check
 function anyButtonJustPressed()
@@ -201,7 +205,41 @@ end
 
 
 function onlineRankReceived(result)
+	local rank = result.rank
+	local player = result.player
+	local score = result.value
 
+	local prevRank = userData.onlineRank.rank
+	if prevRank == nil then
+		prevRank = 9999
+	end
+	local rankCardMenu = menu.setActiveMenu("RANK_CARD")
+	local message = getOnlineRankMessage(rank, prevRank)
+	rankCardMenu:updateRankCardImage(rank, player, score, message, fontSmall)
+end
+
+
+function generateOnlineRankMessage(rank, prevRank)
+	local message = ""
+	if rank > 50 then
+		message = string.format("%d is far from the top.\nI hope you get there one day!", rank)
+	elseif rank > 6 and rank < prevRank then
+		message = "An improvement over your\nprevious rank. Well done!"
+	elseif rank > 6 then
+		message = "You need a rank of 6 or better\nto appear on the leaderboard."
+	elseif rank > 1 and prevRank > 6 then
+		message = "Congratulations!\nYou made the leaderboard!"
+	elseif rank > prevRank then
+		message = "You made the leaderboard,\nbut your old rank was better!"
+	elseif rank > 1 and rank == prevRank then
+		message = "Equal to your previous rank.\nCan you beat it?"
+	elseif rank == 1 then
+		message = "You're number 1!\nSo why try harder?"
+	else
+		message = "Sneaking up the leaderboard!\nCan you reach the top?"
+	end
+
+	return message
 end
 
 userData.onOnlineScoresUpdated = onlineScoresUpdated
@@ -464,6 +502,17 @@ end
 
 
 function game:update()
+	-- Rank card hack
+	if menu.isMenuActive("RANK_CARD") then
+		if anyButtonJustPressed() then
+			sound.play("MENU_SELECT")
+			menu.setActiveMenu(nil)
+		end
+
+		-- need to return so we don't get input passed to title screen etc.
+		return
+	end
+
 	self.timeInState += deltaTimeSeconds
 
 	local state = self.currentState
@@ -905,6 +954,13 @@ function initGame()
 	else
 		game:changeState(STATE_TITLE, true)
 	end
+
+	-- RANK CARD TEST
+	-- local rank = 1
+	-- local oldRank = 6
+	-- local rankCardMenu = menu.setActiveMenu("RANK_CARD")
+	-- local message = generateOnlineRankMessage(rank, oldRank)
+	-- rankCardMenu:updateRankCardImage(rank, "BillyBob", 47560001, message, fontSmall)
 
 	gfx.sprite.setBackgroundDrawingCallback(
 		function(x, y, width, height)

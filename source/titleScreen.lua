@@ -86,11 +86,9 @@ function titleScreen.drawToImage(image, jitter, jitterScale, font, fontSmall)
 	-- titleScreen.drawLogo(200, 48, 58, 6, jitter, jitterScale) -- Card capture
 	titleScreen.drawLogo(200, 48, 68, 8, jitter, jitterScale)
 
-		-- fontSmall:drawTextAligned(record.name, 110, y, kTextAlignment.right)
 	gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 	font:drawTextAligned("Press Ⓐ to begin\nⒷ for menu", 200, 130, kTextAlignment.center)
 
-	-- next used to check for an empty table
 	if userData.onlineRank.rank ~= nil then
 		local rankText = string.format("online rank: %d", userData.onlineRank.rank)
 		fontSmall:drawTextAligned(rankText, 5, 220, kTextAlignment.left)
