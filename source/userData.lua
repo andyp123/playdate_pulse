@@ -302,6 +302,23 @@ function userData.trySaveLocalRunRecord(stagesCleared, totalTime, livesUsed)
 
 	local name = userData.getActiveUserName()
 
+	-- First check to see if the user already has a record saved and compare times
+	local removeIndex = 0
+	for i, runRecord in ipairs(userData.runRecords) do
+		if runRecord.name == name then
+			-- If there is already a better record for this user, return
+			if stagesCleared < runRecord.stagesCleared then return 0 end
+			if stagesCleared == runRecord.stagesCleared and totalTime < runRecord.totalTime then return 0 end
+			-- otherwise we need to remove this record as the new record is better
+			removeIndex = i
+			break
+		end
+	end
+
+	if removeIndex > 0
+		then table.remove(userData.runRecords, removeIndex)
+	end
+
 	-- If the run cleared more stages, or got a faster time, write a new record to the table
 	local rank = 0
 	for i, runRecord in ipairs(userData.runRecords) do
@@ -315,6 +332,7 @@ function userData.trySaveLocalRunRecord(stagesCleared, totalTime, livesUsed)
 		::continue::
 	end
 
+	-- Remove the last place record if we have more than the maximum allowed
 	local numRecords = tablelength(userData.runRecords)
 	if rank > 0 then
 		-- new record was inserted before an existing record
