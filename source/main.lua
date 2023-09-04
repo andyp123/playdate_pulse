@@ -211,7 +211,7 @@ function generateOnlineRankMessage(rank, prevRank)
 	elseif rank > 1 and rank == prevRank then
 		message = "Equal to your previous rank.\nCan you beat it?"
 	elseif rank == 1 then
-		message = "You're number 1!\nSo why try harder?"
+		message = "You're number one!\nSo why try harder?"
 	else
 		message = "Sneaking up the leaderboard!\nCan you reach the top?"
 	end
@@ -506,7 +506,7 @@ function game:update()
 	-- Rank card hack
 	if menu.isMenuActive("RANK_CARD") then
 		if anyButtonJustPressed() then
-			sound.play("MENU_SELECT")
+			sound.play("MENU_BACK")
 			menu.setActiveMenu(nil)
 		end
 
