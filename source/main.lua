@@ -381,6 +381,16 @@ function game:drawTransition()
 		frameImage:draw(x * tileSize, y * tileSize)
 	end
 
+	-- draw expanding circle at player position when transitioning to and from gameplay
+	-- local v1, v2 = self.stateTransitionAnimator.startValue, self.stateTransitionAnimator.endValue
+	-- local fadeIn = v2 < v1
+	if self.currentState == STATE_STAGE_PLAY and self.timeInState < self.transitionDuration then
+		x, y = player1.sprite:getPosition()
+		local radius = clamp(t * 50, 0, 30)
+		gfx.setColor(gfx.kColorWhite)
+		gfx.fillCircleAtPoint(x, y, radius)
+	end
+
 	gfx.unlockFocus()
 	gfx.sprite.addDirtyRect(0, 0, 400, 240)
 end
